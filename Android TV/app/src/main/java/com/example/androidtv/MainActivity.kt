@@ -498,9 +498,12 @@ class MainActivity : AppCompatActivity() {
      */
     private suspend fun checkServiceConfigPeriodically() {
         try {
-            val remoteConfig = remoteConfigManager.checkRemoteConfig()
+            Log.d(TAG, "Периодическая проверка конфигурации...")
+            val remoteConfig = remoteConfigManager.forceCheckRemoteConfig() // Принудительная проверка без кэша
             
             if (remoteConfig != null) {
+                Log.d(TAG, "Получена конфигурация - сервис доступен: ${remoteConfig.serviceAvailable}")
+                
                 // Проверяем доступность сервиса
                 if (!remoteConfig.serviceAvailable) {
                     Log.d(TAG, "Сервис стал недоступен во время работы")
@@ -524,6 +527,8 @@ class MainActivity : AppCompatActivity() {
                     Log.d(TAG, "Обнаружены обновления каналов")
                     updateChannelsFromRemote()
                 }
+            } else {
+                Log.w(TAG, "Не удалось получить конфигурацию при периодической проверке")
             }
             
         } catch (e: Exception) {

@@ -111,21 +111,28 @@ class RemoteConfigManager(private val context: Context) {
     suspend fun checkRemoteConfig(): RemoteConfig? {
         return withContext(Dispatchers.IO) {
             try {
-                Log.d(TAG, "Проверка удаленной конфигурации...")
+                Log.d(TAG, "Проверка удаленной конфигурации с URL: $CONFIG_URL")
                 
                 val request = Request.Builder()
                     .url(CONFIG_URL)
+                    .addHeader("Cache-Control", "no-cache")
+                    .addHeader("Pragma", "no-cache")
+                    .addHeader("Expires", "0")
                     .build()
                 
                 val response = client.newCall(request).execute()
+                Log.d(TAG, "Ответ сервера: ${response.code}")
                 
                 if (response.isSuccessful) {
                     val jsonString = response.body?.string()
                     response.close()
                     
                     if (jsonString != null) {
+                        Log.d(TAG, "Получена конфигурация: ${jsonString.take(200)}...")
                         val json = JSONObject(jsonString)
                         val config = parseConfig(json)
+                        
+                        Log.d(TAG, "Статус сервиса: ${config.serviceAvailable}, сообщение: '${config.message}'")
                         
                         // Кэшируем конфигурацию
                         prefs.edit().putString(KEY_CONFIG_CACHE, jsonString).apply()
@@ -133,6 +140,8 @@ class RemoteConfigManager(private val context: Context) {
                         Log.d(TAG, "Конфигурация получена и кэширована")
                         return@withContext config
                     }
+                } else {
+                    Log.e(TAG, "Ошибка получения конфигурации: ${response.code} ${response.message}")
                 }
                 
                 // Если не удалось получить, используем кэш
@@ -364,5 +373,21 @@ class RemoteConfigManager(private val context: Context) {
     fun clearAccessToken() {
         prefs.edit().remove(KEY_ACCESS_TOKEN).apply()
         Log.d(TAG, "Токен доступа очищен")
+    }
+    
+    /**
+     * Принудительно очищает кэш конфигурации
+     */
+    fun clearConfigCache() {
+        prefs.edit().remove(KEY_CONFIG_CACHE).apply()
+        Log.d(TAG, "Кэш конфигурации очищен")
+    }
+    
+    /**
+     * Проверяет удаленную конфигурацию без использования кэша
+     */
+    suspend fun forceCheckRemoteConfig(): RemoteConfig? {
+        clearConfigCache()
+        return checkRemoteConfig()
     }
 } 
