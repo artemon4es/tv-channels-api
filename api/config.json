@@ -8,8 +8,8 @@
         "changelog": ""
     },
     "service_config": {
-        "service_available": false,
-        "message": "",
+        "service_available": true,
+        "message": "Сервис временно не доступен.\\nОбратитесь к администратору.",
         "maintenance_mode": false,
         "auth_required": true,
         "auth_endpoint": "https://api.github.com/user"
