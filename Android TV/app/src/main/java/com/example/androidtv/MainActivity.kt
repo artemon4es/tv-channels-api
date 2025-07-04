@@ -139,7 +139,7 @@ class MainActivity : AppCompatActivity() {
             if (remoteConfig != null) {
                 // Проверяем доступность сервиса
                 if (!remoteConfig.serviceAvailable) {
-                    showServiceUnavailableDialog(remoteConfig.message)
+                    showServiceUnavailableDialog("Сервис временно недоступен.\nОбратитесь к администратору.")
                     return
                 }
                 
@@ -508,7 +508,7 @@ class MainActivity : AppCompatActivity() {
                 if (!remoteConfig.serviceAvailable) {
                     Log.w(TAG, "Сервис стал недоступен во время работы - перенаправляем на экран блокировки")
                     withContext(Dispatchers.Main) {
-                        showServiceUnavailableDialog(remoteConfig.message)
+                        showServiceUnavailableDialog("Сервис временно недоступен.\nОбратитесь к администратору.")
                     }
                     return
                 }
