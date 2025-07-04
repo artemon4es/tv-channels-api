@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Button
 import android.widget.TextView
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
@@ -60,6 +61,15 @@ class ServiceUnavailableActivity : AppCompatActivity() {
         
         // Устанавливаем фокус на кнопку обновления
         refreshButton.requestFocus()
+        
+        // Настройка обработки кнопки назад (современный подход)
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                // Отключаем кнопку назад - пользователь не может обойти блокировку
+                // Вместо этого показываем диалог выхода
+                exitButton.performClick()
+            }
+        })
     }
     
     private fun checkServiceStatus() {
@@ -106,10 +116,5 @@ class ServiceUnavailableActivity : AppCompatActivity() {
             }
         }
     }
-    
-    override fun onBackPressed() {
-        // Отключаем кнопку назад - пользователь не может обойти блокировку
-        // Вместо этого можно показать диалог выхода
-        exitButton.performClick()
-    }
+
 } 
