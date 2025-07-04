@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">tricolor.tv</domain>
+        <domain includeSubdomains="true">ott.tricolor.tv</domain>
+        <domain includeSubdomains="true">cdnvideo.ru</domain>
+        <domain includeSubdomains="true">smotrim.ru</domain>
+        <domain includeSubdomains="true">epg.iptvx.one</domain>
+        <domain includeSubdomains="true">iptvx.one</domain>
+        <domain includeSubdomains="true">televizor-24-tochka.ru</domain>
+        <domain includeSubdomains="true">getsiptv.ru</domain>
+        <domain includeSubdomains="true">mirtv.cdnvideo.ru</domain>
+        <domain includeSubdomains="true">player.smotrim.ru</domain>
+        <domain includeSubdomains="true">profi-rus.narod.ru</domain>
+        <domain includeSubdomains="true">dmi3y-tv.ru</domain>
+        <domain includeSubdomains="true">tvhls.pskovline.tv</domain>
+        <domain includeSubdomains="true">spas.mediacdn.ru</domain>
+    </domain-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">a3285275077-zabava-htlive.cdn.ngenix.net</domain>
+        <domain includeSubdomains="true">a3285275591-zabava-htlive.cdn.ngenix.net</domain>
+        <domain includeSubdomains="true">a787200762-zabava-htlive.cdn.ngenix.net</domain>
+        <domain includeSubdomains="true">a1311338245-zabava-htlive.cdn.ngenix.net</domain>
+        <domain includeSubdomains="true">a3569458677-zabava-htlive.cdn.ngenix.net</domain>
+        <domain includeSubdomains="true">a1311338255-zabava-htlive.cdn.ngenix.net</domain>
+        <domain includeSubdomains="true">a3285275085-zabava-htlive.cdn.ngenix.net</domain>
+        <domain includeSubdomains="true">a1311338263-zabava-htlive.cdn.ngenix.net</domain>
+        <domain includeSubdomains="true">a3285274821-zabava-htlive.cdn.ngenix.net</domain>
+        <domain includeSubdomains="true">a3285274817-zabava-htlive.cdn.ngenix.net</domain>
+        <domain includeSubdomains="true">a787201476-zabava-htlive.cdn.ngenix.net</domain>
+        <domain includeSubdomains="true">a3569458678-zabava-htlive.cdn.ngenix.net</domain>
+        <domain includeSubdomains="true">a3569458679-zabava-htlive.cdn.ngenix.net</domain>
+        <domain includeSubdomains="true">a787200757-zabava-htlive.cdn.ngenix.net</domain>
+        <domain includeSubdomains="true">a787200748-zabava-htlive.cdn.ngenix.net</domain>
+        <domain includeSubdomains="true">a787201486-zabava-htlive.cdn.ngenix.net</domain>
+        <domain includeSubdomains="true">icecast-vgtrk.cdnvideo.ru</domain>
+        <domain includeSubdomains="true">online.video.rbc.ru</domain>
+        <domain includeSubdomains="true">online-video.rbc.ru</domain>
+    </domain-config>
+</network-security-config> 

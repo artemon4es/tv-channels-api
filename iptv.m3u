@@ -1,0 +1,41 @@
+#EXTM3U url-tvg="http://pskovline.tv/epg/jtv.zip"
+#EXTINF:1,Россия 1
+http://tvhls.pskovline.tv:8080/tv2/index.m3u8
+#EXTINF:2,НТВ
+http://tvhls.pskovline.tv:8080/tv6/index.m3u8
+#EXTINF:3,Пятый канал
+http://tvhls.pskovline.tv:8080/tv79/index.m3u8
+#EXTINF:4,Россия 24
+http://tvhls.pskovline.tv:8080/tv5/index.m3u8
+#EXTINF:5,ОТР
+http://tvhls.pskovline.tv:8080/tv153/index.m3u8
+#EXTINF:6,ТВ Центр
+http://tvhls.pskovline.tv:8080/tv82/index.m3u8
+#EXTINF:7,Мир
+http://tvhls.pskovline.tv:8080/tv10/index.m3u8
+#EXTINF:8,Рен ТВ
+http://tvhls.pskovline.tv:8080/tv8/index.m3u8
+#EXTINF:9,Пятница
+http://tvhls.pskovline.tv:8080/tv28/index.m3u8
+#EXTINF:10,Звезда
+http://tvhls.pskovline.tv:8080/tv7/index.m3u8
+#EXTINF:11,ТНТ
+http://tvhls.pskovline.tv:8080/tv14/index.m3u8
+#EXTINF:12,СТС HD
+http://tvhls.pskovline.tv:8080/tv136/index.m3u8
+#EXTINF:13,Домашний HD
+http://tvhls.pskovline.tv:8080/tv132/index.m3u8
+#EXTINF:14,Карусель
+http://tvhls.pskovline.tv:8080/tv73/index.m3u8
+#EXTINF:15,ТВ3
+http://tvhls.pskovline.tv:8080/tv67/index.m3u8
+#EXTINF:16,Матч ТВ
+http://tvhls.pskovline.tv:8080/tv4/index.m3u8
+#EXTINF:17,Муз
+http://tvhls.pskovline.tv:8080/tv91/index.m3u8
+#EXTINF:18,1HD
+http://tvhls.pskovline.tv:8080/tv41/index.m3u8
+#EXTINF:19,Россия К
+http://tvhls.pskovline.tv:8080/tv3/index.m3u8
+#EXTINF:20,Спас
+http://tvhls.pskovline.tv:8080/tv134/index.m3u8

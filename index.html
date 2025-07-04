@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 IPTV Control Panel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #dee2e6;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            background: #f8f9fa;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px 5px 0 0;
+            margin-right: 5px;
+        }
+        .tab.active {
+            background: #007bff;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .control-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover { background: #0056b3; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+        .status-indicator {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+            margin: 5px;
+        }
+        .online { background: #d4edda; color: #155724; }
+        .offline { background: #f8d7da; color: #721c24; }
+        textarea {
+            width: 100%;
+            height: 200px;
+            font-family: monospace;
+            font-size: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+        }
+        .log {
+            background: #000;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            height: 200px;
+            overflow-y: auto;
+        }
+        .api-endpoint {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+        }
+        code { background: #e9ecef; padding: 2px 5px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <!-- Заголовок и статус -->
+    <div class="container">
+        <h1>🔧 IPTV Control Panel</h1>
+        <p>Система управления IPTV каналами для Android TV</p>
+        <div id="service-status"></div>
+    </div>
+
+    <!-- Табы -->
+    <div class="container">
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('public')">📊 Публичная информация</button>
+            <button class="tab" onclick="showTab('admin')">🔧 Администрирование</button>
+        </div>
+
+        <!-- Вкладка: Публичная информация -->
+        <div id="public" class="tab-content active">
+            <h2>📋 API Endpoints</h2>
+            
+            <div class="api-endpoint">
+                <h3>Основная конфигурация</h3>
+                <code>GET /api/config.json</code>
+                <p>Информация о версии приложения, статусе сервиса и настройках каналов</p>
+            </div>
+            
+            <div class="api-endpoint">
+                <h3>Список каналов</h3>
+                <code>GET /files/channels.m3u8</code>
+                <p>Актуальный список IPTV каналов в формате M3U8</p>
+            </div>
+            
+            <div class="api-endpoint">
+                <h3>Конфигурация безопасности</h3>
+                <code>GET /files/security_config.xml</code>
+                <p>Настройки сетевой безопасности для Android</p>
+            </div>
+            
+            <h2>📱 Для разработчиков</h2>
+            <p>Базовый URL: <code>https://artemon4es.github.io/tv-channels-api</code></p>
+            <p>API готов к использованию</p>
+            
+            <h2>🔧 Статус системы</h2>
+            <div id="system-status">Загрузка...</div>
+        </div>
+
+        <!-- Вкладка: Администрирование -->
+        <div id="admin" class="tab-content">
+            <div class="control-panel">
+                <!-- Управление сервисом -->
+                <div class="section">
+                    <h3>🎛️ Управление сервисом</h3>
+                    <button class="btn btn-success" onclick="enableService()">✅ Включить сервис</button>
+                    <button class="btn btn-danger" onclick="disableService()">❌ Отключить сервис</button>
+                    <br><br>
+                    <label>Сообщение для пользователей:</label>
+                    <textarea id="service-message" placeholder="Сервис временно не доступен.\nОбратитесь к администратору." style="height: 80px;"></textarea>
+                    <button class="btn" onclick="updateServiceMessage()">Обновить сообщение</button>
+                </div>
+
+                <!-- Управление каналами -->
+                <div class="section">
+                    <h3>📺 Управление каналами</h3>
+                    <input type="file" id="channels-file" accept=".m3u8,.m3u">
+                    <button class="btn" onclick="uploadChannels()">Загрузить каналы</button>
+                    <br><br>
+                    <h4>Или редактировать текущие:</h4>
+                    <textarea id="channels-content" style="height: 120px;"></textarea>
+                    <button class="btn btn-success" onclick="saveChannels()">Сохранить изменения</button>
+                </div>
+
+                <!-- Управление APK -->
+                <div class="section">
+                    <h3>📱 Управление APK</h3>
+                    <input type="text" id="new-version" placeholder="1.2" style="width: 100px;">
+                    <input type="file" id="apk-file" accept=".apk">
+                    <button class="btn btn-success" onclick="uploadAPK()">Загрузить APK</button>
+                    <br><br>
+                    <label>Changelog:</label>
+                    <textarea id="changelog" placeholder="🔧 Исправлены ошибки\n✨ Новые функции" style="height: 60px;"></textarea>
+                    <label>
+                        <input type="checkbox" id="update-required"> Принудительное обновление
+                    </label>
+                </div>
+
+                <!-- Безопасность -->
+                <div class="section">
+                    <h3>🔒 Настройки безопасности</h3>
+                    <textarea id="security-domains" placeholder="example.com&#10;cdn.example.com" style="height: 80px;"></textarea>
+                    <button class="btn" onclick="updateSecurity()">Обновить домены</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Лог операций -->
+    <div class="container">
+        <h2>📋 Лог операций</h2>
+        <div id="operation-log" class="log">
+            [СИСТЕМА] Control Panel загружен
+        </div>
+    </div>
+
+    <script>
+        // Переключение табов
+        function showTab(tabName) {
+            const tabs = document.querySelectorAll('.tab');
+            const contents = document.querySelectorAll('.tab-content');
+            
+            tabs.forEach(tab => tab.classList.remove('active'));
+            contents.forEach(content => content.classList.remove('active'));
+            
+            document.querySelector(`button[onclick="showTab('${tabName}')"]`).classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        // Загрузка текущей конфигурации
+        async function loadCurrentConfig() {
+            try {
+                const response = await fetch('./api/config.json');
+                const config = await response.json();
+                
+                // Обновляем статус
+                updateServiceStatus(config);
+                
+                // Загружаем содержимое каналов
+                const channelsResponse = await fetch('./files/channels.m3u8');
+                const channelsContent = await channelsResponse.text();
+                document.getElementById('channels-content').value = channelsContent;
+                
+                // Обновляем системную информацию
+                document.getElementById('system-status').innerHTML = `
+                    <p><strong>Сервис:</strong> ${config.service_config.service_available ? '✅ Доступен' : '❌ Недоступен'}</p>
+                    <p><strong>Версия каналов:</strong> ${config.channels_config.version}</p>
+                    <p><strong>Последнее обновление:</strong> ${new Date(config.channels_config.last_updated).toLocaleString()}</p>
+                    <p><strong>Версия APK:</strong> ${config.app_info.current_version} → ${config.app_info.latest_version}</p>
+                    ${config.service_config.message ? `<p><strong>Сообщение:</strong> ${config.service_config.message}</p>` : ''}
+                `;
+                
+                log('✅ Конфигурация загружена');
+            } catch (error) {
+                log('❌ Ошибка загрузки конфигурации: ' + error.message);
+            }
+        }
+
+        function updateServiceStatus(config) {
+            const statusDiv = document.getElementById('service-status');
+            const isOnline = config.service_config.service_available;
+            
+            statusDiv.innerHTML = `
+                <span class="status-indicator ${isOnline ? 'online' : 'offline'}">
+                    ${isOnline ? '🟢 Сервис активен' : '🔴 Сервис отключен'}
+                </span>
+                <p><strong>Версия каналов:</strong> ${config.channels_config.version}</p>
+                <p><strong>Версия APK:</strong> ${config.app_info.current_version} → ${config.app_info.latest_version}</p>
+            `;
+        }
+
+        function enableService() {
+            updateConfigField('service_config.service_available', true);
+            updateConfigField('service_config.message', '');
+            log('✅ Сервис включен');
+        }
+
+        function disableService() {
+            const message = document.getElementById('service-message').value || 
+                'Сервис временно не доступен.\\nОбратитесь к администратору.';
+            
+            updateConfigField('service_config.service_available', false);
+            updateConfigField('service_config.message', message);
+            log('❌ Сервис отключен');
+        }
+
+        function updateServiceMessage() {
+            const message = document.getElementById('service-message').value;
+            updateConfigField('service_config.message', message);
+            log('📝 Сообщение сервиса обновлено');
+        }
+
+        // Остальные функции админ панели
+        function saveChannels() {
+            const content = document.getElementById('channels-content').value;
+            
+            if (!content.includes('#EXTM3U')) {
+                alert('❌ Неверный формат! Файл должен начинаться с #EXTM3U');
+                return;
+            }
+            
+            const newVersion = Math.floor(Date.now() / 1000);
+            log('📺 Готов к обновлению список каналов (версия: ' + newVersion + ')');
+            
+            const instruction = `
+                <div style="background: #d4edda; padding: 15px; border-radius: 5px; margin: 10px 0; border: 1px solid #c3e6cb;">
+                    <h4>📺 Обновление списка каналов:</h4>
+                    <ol>
+                        <li><a href="https://github.com/artemon4es/tv-channels-api/edit/main/files/channels.m3u8" target="_blank">
+                            Открыть channels.m3u8 в GitHub</a></li>
+                        <li>Заменить весь содержимый файла на новый список</li>
+                        <li>Commit changes</li>
+                        <li><a href="https://github.com/artemon4es/tv-channels-api/edit/main/api/config.json" target="_blank">
+                            Открыть config.json</a> и изменить:</li>
+                        <li><code>"version": ${newVersion}</code></li>
+                        <li><code>"last_updated": "${new Date().toISOString()}"</code></li>
+                    </ol>
+                    <button onclick="this.parentElement.remove()" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 3px;">Закрыть</button>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', instruction);
+        }
+
+        function uploadChannels() {
+            const channelsFile = document.getElementById('channels-file').files[0];
+            
+            if (!channelsFile) {
+                alert('❌ Выберите файл каналов');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                
+                if (!content.includes('#EXTM3U')) {
+                    alert('❌ Неверный формат! Файл должен начинаться с #EXTM3U');
+                    return;
+                }
+                
+                document.getElementById('channels-content').value = content;
+                log(`📺 Файл загружен: ${channelsFile.name}`);
+                saveChannels();
+            };
+            reader.readAsText(channelsFile);
+        }
+
+        function uploadAPK() {
+            const newVersion = document.getElementById('new-version').value;
+            const changelog = document.getElementById('changelog').value;
+            const updateRequired = document.getElementById('update-required').checked;
+            const apkFile = document.getElementById('apk-file').files[0];
+            
+            if (!newVersion) {
+                alert('❌ Укажите версию APK');
+                return;
+            }
+            
+            if (!apkFile) {
+                alert('❌ Выберите APK файл');
+                return;
+            }
+            
+            log(`📱 Готов к загрузке APK v${newVersion} (принудительное: ${updateRequired})`);
+            
+            const instruction = `
+                <div style="background: #cce5ff; padding: 15px; border-radius: 5px; margin: 10px 0; border: 1px solid #99d6ff;">
+                    <h4>📱 Обновление APK приложения:</h4>
+                    <p><strong>Файл:</strong> ${apkFile.name} (${(apkFile.size / 1024 / 1024).toFixed(1)} MB)</p>
+                    <ol>
+                        <li><a href="https://github.com/artemon4es/tv-channels-api/upload/main/files/updates" target="_blank">
+                            Открыть папку updates в GitHub</a></li>
+                        <li>Загрузить APK файл с именем: <code>app-v${newVersion}.apk</code></li>
+                        <li>Commit changes</li>
+                        <li><a href="https://github.com/artemon4es/tv-channels-api/edit/main/api/config.json" target="_blank">
+                            Открыть config.json</a> и обновить:</li>
+                    </ol>
+                    <textarea readonly style="width: 100%; height: 80px; font-family: monospace; font-size: 11px;">"latest_version": "${newVersion}",
+"version_code": ${newVersion.replace(/\./g, '')},
+"download_url": "https://artemon4es.github.io/tv-channels-api/files/updates/app-v${newVersion}.apk",
+"update_required": ${updateRequired},
+"changelog": "${changelog.replace(/\n/g, '\\n')}"</textarea>
+                    <button onclick="this.parentElement.remove()" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 3px; margin-top: 5px;">Закрыть</button>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', instruction);
+        }
+
+        function updateSecurity() {
+            const domains = document.getElementById('security-domains').value;
+            
+            if (!domains.trim()) {
+                alert('❌ Введите домены для добавления');
+                return;
+            }
+            
+            const domainList = domains.split('\n').filter(d => d.trim());
+            let xmlDomains = '';
+            
+            domainList.forEach(domain => {
+                const cleanDomain = domain.trim();
+                if (cleanDomain) {
+                    xmlDomains += `        <domain includeSubdomains="true">${cleanDomain}</domain>\n`;
+                }
+            });
+            
+            log(`🔒 Готов к добавлению ${domainList.length} доменов`);
+            
+            const instruction = `
+                <div style="background: #ffe6cc; padding: 15px; border-radius: 5px; margin: 10px 0; border: 1px solid #ffcc99;">
+                    <h4>🔒 Обновление доменов безопасности:</h4>
+                    <ol>
+                        <li><a href="https://github.com/artemon4es/tv-channels-api/edit/main/files/security_config.xml" target="_blank">
+                            Открыть security_config.xml в GitHub</a></li>
+                        <li>Добавить новые домены в секцию &lt;domain-config&gt;:</li>
+                        <li>Commit changes</li>
+                    </ol>
+                    <p><strong>Добавить эти строки:</strong></p>
+                    <textarea readonly style="width: 100%; height: 100px; font-family: monospace; font-size: 11px;">${xmlDomains}</textarea>
+                    <button onclick="this.parentElement.remove()" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 3px; margin-top: 5px;">Закрыть</button>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', instruction);
+        }
+
+        async function updateConfigField(field, value) {
+            try {
+                const response = await fetch('./api/config.json');
+                const config = await response.json();
+                
+                const keys = field.split('.');
+                let obj = config;
+                for (let i = 0; i < keys.length - 1; i++) {
+                    obj = obj[keys[i]];
+                }
+                obj[keys[keys.length - 1]] = value;
+                
+                log(`🔧 Готово к обновлению: ${field} = ${value}`);
+                showGitHubInstructions(field, value, config);
+                
+            } catch (error) {
+                log(`❌ Ошибка: ${error.message}`);
+            }
+        }
+
+        function showGitHubInstructions(field, value, config) {
+            const instruction = `
+                <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                    <h4>📝 Действие для применения изменения:</h4>
+                    <ol>
+                        <li><a href="https://github.com/artemon4es/tv-channels-api/edit/main/api/config.json" target="_blank">
+                            Открыть config.json в GitHub</a></li>
+                        <li>Найти строку: <code>"${field.split('.').pop()}": ...</code></li>
+                        <li>Изменить на: <code>"${field.split('.').pop()}": ${typeof value === 'string' ? `"${value}"` : value}</code></li>
+                        <li>Нажать "Commit changes"</li>
+                    </ol>
+                    <button onclick="this.parentElement.remove()" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 3px;">Закрыть</button>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', instruction);
+        }
+
+        function log(message) {
+            const logDiv = document.getElementById('operation-log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `\n[${timestamp}] ${message}`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        // Загружаем конфигурацию при старте
+        loadCurrentConfig();
+        
+        // Обновление каждые 30 секунд
+        setInterval(loadCurrentConfig, 30000);
+    </script>
+</body>
+</html> 

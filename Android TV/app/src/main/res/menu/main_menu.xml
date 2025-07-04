@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    
+    <item
+        android:id="@+id/action_check_updates"
+        android:title="🔄 Проверить обновления"
+        android:icon="@android:drawable/stat_sys_download_done"
+        app:showAsAction="ifRoom" />
+        
+    <item
+        android:id="@+id/action_refresh_channels"
+        android:title="📺 Обновить каналы"
+        android:icon="@android:drawable/ic_menu_rotate"
+        app:showAsAction="ifRoom" />
+        
+    <item
+        android:id="@+id/action_service_status"
+        android:title="📊 Статус сервиса"
+        android:icon="@android:drawable/ic_menu_info_details"
+        app:showAsAction="never" />
+        
+    <!-- Административные функции -->
+    <item
+        android:id="@+id/action_admin_login"
+        android:title="🔐 Войти как администратор"
+        app:showAsAction="never" />
+        
+    <item
+        android:id="@+id/action_admin_logout"
+        android:title="🚪 Выйти из админ-режима"
+        app:showAsAction="never" />
+
+</menu> 

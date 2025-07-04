@@ -1,0 +1,45 @@
+# Файлы Android Studio
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# APK файлы (кроме папки updates)
+*.apk
+!files/updates/*.apk
+
+# Временные файлы
+*.tmp
+*.temp
+*.log
+*.backup
+
+# Ключи подписи (безопасность)
+*.jks
+*.keystore
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Локальные настройки
+.env
+config.local.*
+
+# Build output
+Android\ TV/app/build/
+Android\ TV/build/
+Android\ TV/.gradle/
+Android\ TV/build_output/ 

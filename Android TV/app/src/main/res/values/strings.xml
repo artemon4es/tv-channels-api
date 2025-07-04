@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">IP_TV</string>
+    <string name="update_channels">Обновить список каналов</string>
+    <string name="channel_list_updated">Список каналов обновлён</string>
+    <string name="channel_list_update_error">Ошибка обновления списка каналов</string>
+    <string name="exo_controls_subtitle_description">Субтитры</string>
+</resources> 
