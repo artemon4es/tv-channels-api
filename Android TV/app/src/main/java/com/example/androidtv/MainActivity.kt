@@ -447,8 +447,11 @@ class MainActivity : AppCompatActivity() {
     
     private fun playChannel(channel: Channel) {
         val intent = Intent(this, PlayerActivity::class.java)
-        intent.putExtra("channel_name", channel.name)
-        intent.putExtra("channel_url", channel.streamUrl)
+        
+        // Передаем весь список каналов и индекс выбранного канала
+        intent.putParcelableArrayListExtra("CHANNEL_LIST", ArrayList(channels))
+        intent.putExtra("CHANNEL_INDEX", channels.indexOf(channel))
+        
         startActivity(intent)
     }
     
