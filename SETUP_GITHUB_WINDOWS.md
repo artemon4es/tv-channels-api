@@ -30,7 +30,7 @@ git config --global user.name "artemon4es"
 git config --global user.email "ваш-email@example.com"
 
 # Проверка настройки
-git config --global --list
+    git config --global --list
 ```
 
 ---
