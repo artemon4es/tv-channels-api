@@ -41,6 +41,10 @@
             android:name=".MainActivity"
             android:exported="true" />
         <activity
+            android:name=".ServiceUnavailableActivity"
+            android:exported="false"
+            android:theme="@style/AppTheme.NoActionBar" />
+        <activity
             android:name=".SplashActivity"
             android:exported="true"
             android:theme="@style/AppTheme.NoActionBar">

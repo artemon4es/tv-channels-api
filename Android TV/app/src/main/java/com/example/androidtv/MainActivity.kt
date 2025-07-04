@@ -21,6 +21,7 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import androidx.window.layout.WindowMetricsCalculator
 import kotlinx.coroutines.*
+import kotlinx.coroutines.delay
 
 class MainActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
@@ -28,9 +29,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var remoteConfigManager: RemoteConfigManager
     private lateinit var autoUpdateManager: AutoUpdateManager
     private var channels = mutableListOf<Channel>()
+    private var periodicConfigCheckJob: Job? = null
     
     companion object {
         private const val TAG = "MainActivity"
+        private const val CONFIG_CHECK_INTERVAL = 60000L // 1 минута
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -76,6 +79,9 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             initializeRemoteConfig()
         }
+        
+        // Запускаем периодическую проверку конфигурации
+        startPeriodicConfigCheck()
     }
     
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -118,6 +124,7 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         autoUpdateManager.cleanup()
+        stopPeriodicConfigCheck()
     }
     
     /**
@@ -465,6 +472,81 @@ class MainActivity : AppCompatActivity() {
             .setCancelable(false)
             .create()
         dialog.show()
+    }
+    
+    /**
+     * Показывает экран недоступности сервиса
+     */
+    private fun showServiceUnavailableDialog(message: String) {
+        val serviceMessage = message.ifEmpty { "Сервис временно недоступен.\nОбратитесь к администратору." }
+        Log.d(TAG, "Показываем экран недоступности сервиса: $serviceMessage")
+        ServiceUnavailableActivity.start(this, serviceMessage)
+        finish() // Закрываем MainActivity
+    }
+    
+    /**
+     * Запускает периодическую проверку конфигурации сервиса
+     */
+    private fun startPeriodicConfigCheck() {
+        periodicConfigCheckJob = lifecycleScope.launch {
+            while (isActive) {
+                try {
+                    delay(CONFIG_CHECK_INTERVAL)
+                    
+                    if (isActive) {
+                        checkServiceConfigPeriodically()
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Ошибка периодической проверки конфигурации: ${e.message}")
+                }
+            }
+        }
+    }
+    
+    /**
+     * Останавливает периодическую проверку конфигурации
+     */
+    private fun stopPeriodicConfigCheck() {
+        periodicConfigCheckJob?.cancel()
+        periodicConfigCheckJob = null
+    }
+    
+    /**
+     * Выполняет периодическую проверку конфигурации сервиса
+     */
+    private suspend fun checkServiceConfigPeriodically() {
+        try {
+            val remoteConfig = remoteConfigManager.checkRemoteConfig()
+            
+            if (remoteConfig != null) {
+                // Проверяем доступность сервиса
+                if (!remoteConfig.serviceAvailable) {
+                    Log.d(TAG, "Сервис стал недоступен во время работы")
+                    withContext(Dispatchers.Main) {
+                        showServiceUnavailableDialog(remoteConfig.message)
+                    }
+                    return
+                }
+                
+                // Проверяем режим обслуживания
+                if (remoteConfig.maintenanceMode) {
+                    Log.d(TAG, "Включен режим обслуживания во время работы")
+                    withContext(Dispatchers.Main) {
+                        showMaintenanceDialog(remoteConfig.message)
+                    }
+                    return
+                }
+                
+                // Проверяем обновления каналов
+                if (remoteConfigManager.shouldUpdateChannels(remoteConfig.channelsVersion)) {
+                    Log.d(TAG, "Обнаружены обновления каналов")
+                    updateChannelsFromRemote()
+                }
+            }
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Ошибка периодической проверки конфигурации: ${e.message}")
+        }
     }
     
     /**
