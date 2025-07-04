@@ -420,6 +420,7 @@
 
         async function enableService() {
             log('🔄 Включение сервиса...');
+            log('🔍 DEBUG: Вызвана функция enableService()');
             
             try {
                 // Сбрасываем счетчик попыток для новой операции
@@ -432,6 +433,7 @@
                 }
                 
                 // Обновляем конфигурацию на GitHub
+                log('🔍 DEBUG: Вызываем updateConfigFieldDirect с параметром TRUE');
                 await updateConfigFieldDirect('service_config.service_available', true);
                 await updateConfigFieldDirect('service_config.message', '');
                 log('✅ Сервис включен!');
@@ -462,6 +464,7 @@
 
         async function disableService() {
             log('🔄 Отключение сервиса...');
+            log('🔍 DEBUG: Вызвана функция disableService()');
             
             try {
                 // Сбрасываем счетчик попыток для новой операции
@@ -474,6 +477,7 @@
                 }
                 
                 // Обновляем конфигурацию на GitHub
+                log('🔍 DEBUG: Вызываем updateConfigFieldDirect с параметром FALSE');
                 await updateConfigFieldDirect('service_config.service_available', false);
                 await updateConfigFieldDirect('service_config.message', '');
                 log('❌ Сервис отключен!');
@@ -841,6 +845,8 @@
         
         async function updateConfigFieldDirect(field, value) {
             try {
+                log(`🔍 DEBUG: updateConfigFieldDirect вызвана с параметрами: field="${field}", value=${value} (тип: ${typeof value})`);
+                
                 // Проверяем наличие токена
                 if (!authToken) {
                     throw new Error('Токен GitHub не настроен. Авторизуйтесь для внесения изменений.');
@@ -853,6 +859,7 @@
                 }
                 
                 const config = await response.json();
+                log(`🔍 DEBUG: Текущее значение ${field}: ${config.service_config?.service_available}`);
                 
                 // Обновляем поле
                 const keys = field.split('.');
@@ -863,10 +870,14 @@
                     }
                     obj = obj[keys[i]];
                 }
+                
+                log(`🔍 DEBUG: Присваиваем значение ${value} в поле ${field}`);
                 obj[keys[keys.length - 1]] = value;
+                log(`🔍 DEBUG: После присваивания: ${obj[keys[keys.length - 1]]}`);
                 
                 // Сохраняем обновленный файл
                 const updatedContent = JSON.stringify(config, null, 4);
+                log(`🔍 DEBUG: Сохраняем в GitHub с содержимым: service_available = ${config.service_config?.service_available}`);
                 await updateGitHubFile('api/config.json', updatedContent, `🔧 Обновление: ${field} = ${value}`);
                 
                 log(`✅ ${field} обновлено на ${value}`);
@@ -879,6 +890,8 @@
         
         async function updateGitHubFile(filePath, content, commitMessage, isBinary = false) {
             try {
+                log(`🔍 DEBUG: updateGitHubFile вызвана для файла ${filePath}`);
+                
                 // Проверяем наличие токена
                 if (!authToken) {
                     throw new Error('Токен GitHub не настроен. Авторизуйтесь для внесения изменений.');
@@ -901,6 +914,12 @@
                     log(`📝 Файл ${filePath} не найден, создаем новый`);
                 } else {
                     throw new Error(`Не удалось получить файл ${filePath}: HTTP ${fileResponse.status}`);
+                }
+                
+                // Показываем содержимое для отладки
+                if (filePath === 'api/config.json') {
+                    const configPreview = JSON.parse(content);
+                    log(`🔍 DEBUG: Содержимое для отправки в GitHub: service_available = ${configPreview.service_config?.service_available}`);
                 }
                 
                 // 2. Обновляем файл
