@@ -33,7 +33,7 @@ class MainActivity : AppCompatActivity() {
     
     companion object {
         private const val TAG = "MainActivity"
-        private const val CONFIG_CHECK_INTERVAL = 60000L // 1 минута
+        private const val CONFIG_CHECK_INTERVAL = 300000L // 5 минут
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -502,11 +502,11 @@ class MainActivity : AppCompatActivity() {
             val remoteConfig = remoteConfigManager.forceCheckRemoteConfig() // Принудительная проверка без кэша
             
             if (remoteConfig != null) {
-                Log.d(TAG, "Получена конфигурация - сервис доступен: ${remoteConfig.serviceAvailable}")
+                Log.d(TAG, "Получена конфигурация - сервис доступен: ${remoteConfig.serviceAvailable}, обслуживание: ${remoteConfig.maintenanceMode}")
                 
                 // Проверяем доступность сервиса
                 if (!remoteConfig.serviceAvailable) {
-                    Log.d(TAG, "Сервис стал недоступен во время работы")
+                    Log.w(TAG, "Сервис стал недоступен во время работы - перенаправляем на экран блокировки")
                     withContext(Dispatchers.Main) {
                         showServiceUnavailableDialog(remoteConfig.message)
                     }
@@ -515,7 +515,7 @@ class MainActivity : AppCompatActivity() {
                 
                 // Проверяем режим обслуживания
                 if (remoteConfig.maintenanceMode) {
-                    Log.d(TAG, "Включен режим обслуживания во время работы")
+                    Log.w(TAG, "Включен режим обслуживания во время работы - перенаправляем на экран обслуживания")
                     withContext(Dispatchers.Main) {
                         showMaintenanceDialog(remoteConfig.message)
                     }
@@ -524,15 +524,18 @@ class MainActivity : AppCompatActivity() {
                 
                 // Проверяем обновления каналов
                 if (remoteConfigManager.shouldUpdateChannels(remoteConfig.channelsVersion)) {
-                    Log.d(TAG, "Обнаружены обновления каналов")
+                    Log.i(TAG, "Обнаружены обновления каналов - загружаем новую версию")
                     updateChannelsFromRemote()
+                } else {
+                    Log.d(TAG, "Каналы актуальны, версия: ${remoteConfig.channelsVersion}")
                 }
+                
             } else {
-                Log.w(TAG, "Не удалось получить конфигурацию при периодической проверке")
+                Log.w(TAG, "Не удалось получить конфигурацию при периодической проверке - возможно проблемы с сетью")
             }
             
         } catch (e: Exception) {
-            Log.e(TAG, "Ошибка периодической проверки конфигурации: ${e.message}")
+            Log.e(TAG, "Ошибка периодической проверки конфигурации: ${e.message}", e)
         }
     }
     
