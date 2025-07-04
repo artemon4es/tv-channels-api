@@ -42,11 +42,9 @@ class ServiceUnavailableActivity : AppCompatActivity() {
         
         remoteConfigManager = RemoteConfigManager(this)
         
-        // Получаем сообщение от админа
+        // Показываем стандартное сообщение
         val adminMessage = intent.getStringExtra(EXTRA_MESSAGE)
-        if (!adminMessage.isNullOrEmpty()) {
-            messageTextView.text = adminMessage
-        }
+        messageTextView.text = adminMessage ?: "Сервис временно недоступен.\nОбратитесь к администратору."
         
         // Настройка кнопок
         refreshButton.setOnClickListener {
@@ -88,15 +86,15 @@ class ServiceUnavailableActivity : AppCompatActivity() {
                         startActivity(intent)
                         finish()
                     } else {
-                        // Сервис все еще недоступен - обновляем сообщение
+                        // Сервис все еще недоступен - показываем стандартное сообщение
                         val message = if (remoteConfig.maintenanceMode) {
-                            remoteConfig.message.ifEmpty { "Проводится техническое обслуживание. Попробуйте позже." }
+                            "Проводится техническое обслуживание. Попробуйте позже."
                         } else {
-                            remoteConfig.message.ifEmpty { "Сервис временно недоступен.\nОбратитесь к администратору." }
+                            "Сервис временно недоступен.\nОбратитесь к администратору."
                         }
                         
                         messageTextView.text = message
-                        Log.d(TAG, "Сервис все еще недоступен: $message")
+                        Log.d(TAG, "Сервис все еще недоступен")
                     }
                 } else {
                     // Ошибка подключения
