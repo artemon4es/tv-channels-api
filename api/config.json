@@ -8,7 +8,7 @@
         "changelog": ""
     },
     "service_config": {
-        "service_available": true,
+        "service_available": false,
         "message": "Сервис временно не доступен.\\nОбратитесь к администратору.",
         "maintenance_mode": false,
         "auth_required": true,
