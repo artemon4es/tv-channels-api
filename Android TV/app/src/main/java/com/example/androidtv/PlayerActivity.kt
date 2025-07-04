@@ -5,13 +5,11 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import android.widget.ImageView
 import androidx.annotation.OptIn
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.net.toUri
@@ -141,56 +139,8 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun showChannelNameToast(name: String) {
-        val inflater = layoutInflater
-        val layout = inflater.inflate(R.layout.custom_toast, findViewById(R.id.toast_container))
-        
-        val toastImage = layout.findViewById<ImageView>(R.id.toast_image)
-        val toastText = layout.findViewById<TextView>(R.id.toast_text)
-        
-        // Загружаем иконку канала
-        val iconName = "channel_${name.lowercase()
-            .replace(" ", "_")
-            .replace("россия", "russia") 
-            .replace("первый", "perviy")
-            .replace("канал", "kanal")
-            .replace("нтв", "ntv")
-            .replace("рен", "ren")
-            .replace("тв", "tv")
-            .replace("центр", "centr")
-            .replace("звезда", "zvezda")
-            .replace("домашний", "domashniy")
-            .replace("культура", "kultura")
-            .replace("пятница", "pyatnica")
-            .replace("карусель", "karusel")
-            .replace("матч!", "match")
-            .replace("матч", "match")
-            .replace("мир", "mir")
-            .replace("муз", "muz")
-            .replace("рбк", "rbk")
-            .replace("отр", "otr")
-            .replace("спас", "spas")
-            .replace("стс", "sts")
-            .replace("тнт", "tnt")
-            .replace("hd", "")
-            .replace("-", "_")
-            .replace(".", "_")
-            .replace("!", "")
-            .trim('_')}"
-        
-        val iconResId = resources.getIdentifier(iconName, "drawable", packageName)
-        if (iconResId != 0) {
-            toastImage.setImageResource(iconResId)
-        } else {
-            toastImage.setImageResource(R.drawable.channel_placeholder)
-        }
-        
-        toastText.text = name
-        
-        val toast = Toast(this)
-        toast.duration = Toast.LENGTH_SHORT
-        toast.view = layout
-        toast.setGravity(Gravity.TOP or Gravity.START, 40, 40)
-        toast.show()
+        // Простой Toast без кастомного view (современный подход)
+        Toast.makeText(this, "📺 $name", Toast.LENGTH_SHORT).show()
     }
 
     /**

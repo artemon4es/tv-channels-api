@@ -16,7 +16,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.example.androidtv.ChannelList
+
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import androidx.window.layout.WindowMetricsCalculator
@@ -64,7 +64,7 @@ class MainActivity : AppCompatActivity() {
             }
         })
         
-        adapter = ChannelAdapter(channels) { channel ->
+        adapter = ChannelAdapter(channels) { channel, _ ->
             playChannel(channel)
         }
         recyclerView.adapter = adapter
@@ -86,15 +86,21 @@ class MainActivity : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.action_check_updates -> {
-                checkForUpdates()
+                lifecycleScope.launch {
+                    checkForUpdates()
+                }
                 true
             }
             R.id.action_refresh_channels -> {
-                refreshChannels()
+                lifecycleScope.launch {
+                    refreshChannels()
+                }
                 true
             }
             R.id.action_service_status -> {
-                showServiceStatus()
+                lifecycleScope.launch {
+                    showServiceStatus()
+                }
                 true
             }
             R.id.action_admin_login -> {
@@ -195,7 +201,7 @@ class MainActivity : AppCompatActivity() {
             val channelList = remoteConfigManager.downloadChannelList()
             
             if (channelList != null) {
-                parseM3UFromString(channelList)
+                val parsedChannels = parseM3U8(channelList)
                 
                 // Обновляем версию каналов
                 val remoteConfig = remoteConfigManager.checkRemoteConfig()
@@ -204,7 +210,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 
                 withContext(Dispatchers.Main) {
-                    updateAdapter()
+                    updateChannelList(parsedChannels)
                     Toast.makeText(this@MainActivity, "Каналы обновлены", Toast.LENGTH_SHORT).show()
                 }
             } else {
@@ -277,7 +283,7 @@ class MainActivity : AppCompatActivity() {
             val channelList = remoteConfigManager.downloadChannelList()
             
             if (channelList != null) {
-                parseM3UFromString(channelList)
+                val parsedChannels = parseM3U8(channelList)
                 
                 val remoteConfig = remoteConfigManager.checkRemoteConfig()
                 remoteConfig?.let {
@@ -285,7 +291,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 
                 withContext(Dispatchers.Main) {
-                    updateAdapter()
+                    updateChannelList(parsedChannels)
                     Toast.makeText(this@MainActivity, "Список каналов обновлен", Toast.LENGTH_SHORT).show()
                 }
                 
@@ -310,22 +316,22 @@ class MainActivity : AppCompatActivity() {
             
             if (cachedChannels != null) {
                 Log.d(TAG, "Загрузка каналов из кэша")
-                parseM3UFromString(cachedChannels)
+                val parsedChannels = parseM3U8(cachedChannels)
+                withContext(Dispatchers.Main) {
+                    updateChannelList(parsedChannels)
+                }
             } else {
                 Log.d(TAG, "Загрузка каналов из assets")
+                val localChannels = loadLocalChannels()
                 withContext(Dispatchers.Main) {
-                    parseM3UFromAssets("custom.m3u8")
+                    updateChannelList(localChannels)
                 }
-            }
-            
-            withContext(Dispatchers.Main) {
-                updateAdapter()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Ошибка загрузки каналов: ${e.message}")
             withContext(Dispatchers.Main) {
-                parseM3UFromAssets("custom.m3u8")
-                updateAdapter()
+                val localChannels = loadLocalChannels()
+                updateChannelList(localChannels)
             }
         }
     }
@@ -350,47 +356,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
-    /**
-     * Парсит M3U из строки
-     */
-    private fun parseM3UFromString(content: String) {
-        val lines = content.lines().filter { it.isNotBlank() }
-        parseM3ULines(lines)
-    }
-    
-    /**
-     * Парсит строки M3U
-     */
-    private fun parseM3ULines(lines: List<String>) {
-        val channels = mutableListOf<Channel>()
-        var i = 0
-        while (i < lines.size) {
-            if (lines[i].startsWith("#EXTINF")) {
-                val name = lines[i].substringAfter(",").trim()
-                val urlLine = if (i + 1 < lines.size) lines[i + 1].trim() else null
-                if (urlLine != null && !urlLine.startsWith("#")) {
-                    channels.add(Channel(name, R.drawable.channel_placeholder, urlLine))
-                    i++
-                }
-            }
-            i++
-        }
-        ChannelList.update(channels)
-        Log.d(TAG, "Загружено каналов: ${channels.size}")
-    }
-    
-    /**
-     * Обновляет адаптер RecyclerView
-     */
-    private fun updateAdapter() {
-        adapter = ChannelAdapter(ChannelList.channels) { channel, position ->
-            val intent = Intent(this, PlayerActivity::class.java)
-            intent.putParcelableArrayListExtra("CHANNEL_LIST", ArrayList(ChannelList.channels))
-            intent.putExtra("CHANNEL_INDEX", position)
-            startActivity(intent)
-        }
-        recyclerView.adapter = adapter
-    }
+
     
     /**
      * Получает кэшированный список каналов
@@ -409,36 +375,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun parseM3UFromAssets(filename: String) {
-        try {
-            val inputStream = assets.open(filename)
-            val reader = BufferedReader(InputStreamReader(inputStream))
-            val lines = reader.readLines().filter { it.isNotBlank() }
-            val channels = mutableListOf<Channel>()
-            var i = 0
-            while (i < lines.size) {
-                if (lines[i].startsWith("#EXTINF")) {
-                    val name = lines[i].substringAfter(",").trim()
-                    val urlLine = if (i + 1 < lines.size) lines[i + 1].trim() else null
-                    if (urlLine != null && !urlLine.startsWith("#")) {
-                        channels.add(Channel(name, R.drawable.channel_placeholder, urlLine))
-                        i++
-                    }
-                }
-                i++
-            }
-            ChannelList.update(channels)
-            adapter = ChannelAdapter(ChannelList.channels) { channel, position ->
-                val intent = Intent(this, PlayerActivity::class.java)
-                intent.putParcelableArrayListExtra("CHANNEL_LIST", ArrayList(ChannelList.channels))
-                intent.putExtra("CHANNEL_INDEX", position)
-                startActivity(intent)
-            }
-            recyclerView.adapter = adapter
-        } catch (e: Exception) {
-            Toast.makeText(this, "Ошибка загрузки каналов: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
-        }
-    }
+
 
     private fun loadChannels() {
         lifecycleScope.launch {
@@ -450,9 +387,10 @@ class MainActivity : AppCompatActivity() {
                 }
                 
                 // Затем пытаемся обновить из удаленного источника
-                val remoteChannels = remoteConfigManager.downloadChannels()
+                val remoteChannels = remoteConfigManager.downloadChannelList()
                 if (remoteChannels != null && remoteChannels.isNotEmpty()) {
-                    updateChannelList(remoteChannels)
+                    val channelList = parseM3U8(remoteChannels)
+                    updateChannelList(channelList)
                     showToast("Каналы обновлены")
                 }
             } catch (e: Exception) {
@@ -489,7 +427,7 @@ class MainActivity : AppCompatActivity() {
                     if (i + 1 < lines.size) {
                         val url = lines[i + 1].trim()
                         if (url.isNotEmpty() && !url.startsWith("#")) {
-                            channels.add(Channel(name, url))
+                            channels.add(Channel(name, R.drawable.channel_placeholder, url))
                         }
                     }
                 }
@@ -510,7 +448,7 @@ class MainActivity : AppCompatActivity() {
     private fun playChannel(channel: Channel) {
         val intent = Intent(this, PlayerActivity::class.java)
         intent.putExtra("channel_name", channel.name)
-        intent.putExtra("channel_url", channel.url)
+        intent.putExtra("channel_url", channel.streamUrl)
         startActivity(intent)
     }
     

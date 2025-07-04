@@ -43,6 +43,7 @@ class RemoteConfigManager(private val context: Context) {
     data class RemoteConfig(
         val serviceAvailable: Boolean,
         val message: String,
+        val maintenanceMode: Boolean,
         val appLatestVersion: String,
         val appVersionCode: Int,
         val downloadUrl: String,
@@ -263,6 +264,7 @@ class RemoteConfigManager(private val context: Context) {
         return RemoteConfig(
             serviceAvailable = serviceConfig.optBoolean("service_available", true),
             message = serviceConfig.optString("message", ""),
+            maintenanceMode = serviceConfig.optBoolean("maintenance_mode", false),
             appLatestVersion = appInfo.optString("latest_version", "1.0"),
             appVersionCode = appInfo.optInt("version_code", 1),
             downloadUrl = appInfo.optString("download_url", ""),
@@ -318,5 +320,49 @@ class RemoteConfigManager(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Ошибка сохранения конфигурации безопасности: ${e.message}")
         }
+    }
+    
+    /**
+     * Выполняет административное действие
+     */
+    suspend fun performAdminAction(action: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                val token = getAccessToken()
+                if (token.isNullOrEmpty()) {
+                    Log.w(TAG, "Токен доступа не установлен")
+                    return@withContext false
+                }
+                
+                // Проверяем токен через GitHub API
+                val request = Request.Builder()
+                    .url("https://api.github.com/user")
+                    .header("Authorization", "token $token")
+                    .build()
+                
+                val response = client.newCall(request).execute()
+                val isValid = response.isSuccessful
+                
+                if (isValid) {
+                    Log.d(TAG, "Административное действие '$action' выполнено успешно")
+                } else {
+                    Log.w(TAG, "Административное действие '$action' не удалось: ${response.code}")
+                }
+                
+                response.close()
+                isValid
+            } catch (e: Exception) {
+                Log.e(TAG, "Ошибка выполнения административного действия", e)
+                false
+            }
+        }
+    }
+    
+    /**
+     * Очищает токен доступа
+     */
+    fun clearAccessToken() {
+        prefs.edit().remove(KEY_ACCESS_TOKEN).apply()
+        Log.d(TAG, "Токен доступа очищен")
     }
 } 

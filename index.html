@@ -12,6 +12,24 @@
             padding: 20px;
             background: #f5f5f5;
         }
+        .auth-container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 400px;
+            margin: 100px auto;
+        }
+        .auth-input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        .hidden { display: none !important; }
         .container {
             background: white;
             padding: 30px;
@@ -111,12 +129,33 @@
     </style>
 </head>
 <body>
-    <!-- Заголовок и статус -->
-    <div class="container">
-        <h1>🔧 IPTV Control Panel</h1>
-        <p>Система управления IPTV каналами для Android TV</p>
-        <div id="service-status"></div>
+    <!-- Контейнер аутентификации -->
+    <div id="auth-container" class="auth-container">
+        <h1>🔐 Авторизация</h1>
+        <p>Введите GitHub Personal Access Token для доступа к админ-панели</p>
+        <input type="password" id="auth-token" class="auth-input" placeholder="GitHub Personal Access Token" autocomplete="off">
+        <button class="btn btn-success" onclick="authenticate()" style="width: 100%; margin-top: 10px;">🔓 Войти</button>
+        <div id="auth-error" style="color: red; margin-top: 10px; display: none;"></div>
+        <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px; font-size: 12px; text-align: left;">
+            <strong>Как получить токен:</strong><br>
+            1. Перейдите в <a href="https://github.com/settings/tokens" target="_blank">GitHub Settings → Tokens</a><br>
+            2. Создайте Personal Access Token<br>
+            3. Выберите scopes: <code>repo</code>, <code>workflow</code><br>
+            4. Скопируйте токен и введите выше
+        </div>
     </div>
+
+    <!-- Основной контент (скрыт до авторизации) -->
+    <div id="main-content" class="hidden">
+        <!-- Заголовок и статус -->
+        <div class="container">
+            <h1>🔧 IPTV Control Panel</h1>
+            <p>Система управления IPTV каналами для Android TV</p>
+            <div style="text-align: right;">
+                <button class="btn btn-danger" onclick="logout()">🚪 Выйти</button>
+            </div>
+            <div id="service-status"></div>
+        </div>
 
     <!-- Табы -->
     <div class="container">
@@ -465,11 +504,95 @@
             logDiv.scrollTop = logDiv.scrollHeight;
         }
 
-        // Загружаем конфигурацию при старте
-        loadCurrentConfig();
+        // ===== СИСТЕМА АУТЕНТИФИКАЦИИ =====
+        let authToken = localStorage.getItem('github-token');
+
+        // Проверяем токен при загрузке страницы
+        window.onload = function() {
+            if (authToken) {
+                verifyToken(authToken);
+            }
+        };
+
+        async function authenticate() {
+            const token = document.getElementById('auth-token').value.trim();
+            const errorDiv = document.getElementById('auth-error');
+            
+            if (!token) {
+                showAuthError('Введите токен');
+                return;
+            }
+            
+            errorDiv.style.display = 'none';
+            document.querySelector('#auth-container .btn').textContent = '🔄 Проверка...';
+            
+            const isValid = await verifyToken(token);
+            
+            if (isValid) {
+                authToken = token;
+                localStorage.setItem('github-token', token);
+                document.getElementById('auth-container').classList.add('hidden');
+                document.getElementById('main-content').classList.remove('hidden');
+                
+                // Загружаем конфигурацию после успешной авторизации
+                loadCurrentConfig();
+                setInterval(loadCurrentConfig, 30000);
+            } else {
+                document.querySelector('#auth-container .btn').textContent = '🔓 Войти';
+                showAuthError('Неверный токен или нет доступа к репозиторию');
+            }
+        }
+
+        async function verifyToken(token) {
+            try {
+                // Проверяем доступ к нашему репозиторию
+                const response = await fetch('https://api.github.com/repos/artemon4es/tv-channels-api', {
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const repo = await response.json();
+                    // Проверяем что у токена есть права на запись
+                    return repo.permissions && repo.permissions.push;
+                }
+                
+                return false;
+            } catch (error) {
+                console.error('Ошибка проверки токена:', error);
+                return false;
+            }
+        }
+
+        function showAuthError(message) {
+            const errorDiv = document.getElementById('auth-error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function logout() {
+            localStorage.removeItem('github-token');
+            authToken = null;
+            document.getElementById('auth-container').classList.remove('hidden');
+            document.getElementById('main-content').classList.add('hidden');
+            document.getElementById('auth-token').value = '';
+        }
+
+        // Enter key для авторизации
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !document.getElementById('auth-container').classList.contains('hidden')) {
+                authenticate();
+            }
+        });
+
+        // Загружаем конфигурацию при старте (только если авторизованы)
+        // loadCurrentConfig(); - убрано, будет вызываться после авторизации
         
-        // Обновление каждые 30 секунд
-        setInterval(loadCurrentConfig, 30000);
+        // Обновление каждые 30 секунд (только если авторизованы)
+        // setInterval(loadCurrentConfig, 30000); - убрано, будет установлено после авторизации
     </script>
+    </div> <!-- Закрытие main-content -->
 </body>
 </html> 
