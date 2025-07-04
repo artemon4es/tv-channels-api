@@ -9,7 +9,7 @@
     },
     "service_config": {
         "service_available": true,
-        "message": "",
+        "message": "Сервис временно не доступен.\\nОбратитесь к администратору.",
         "maintenance_mode": false,
         "auth_required": true,
         "auth_endpoint": "https://api.github.com/user"
