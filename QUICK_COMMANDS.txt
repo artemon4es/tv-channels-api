@@ -1,0 +1,39 @@
+========================================
+  QUICK SERVICE CONTROL COMMANDS
+========================================
+
+WORKING COMMANDS (tested and verified):
+
+1. CHECK STATUS:
+   .\status.ps1
+   
+2. DISABLE SERVICE:
+   .\service_off.ps1
+   
+3. ENABLE SERVICE:
+   .\service_on.ps1
+
+========================================
+
+WHAT THESE SCRIPTS DO:
+
+- Directly modify api/config.json file
+- Change service_available: true/false
+- Show current and new status
+- Work locally (change files on disk)
+
+TO APPLY CHANGES ON GITHUB:
+After running scripts, execute:
+git add api/config.json && git commit -m "Service changed" && git push
+
+========================================
+
+EXAMPLE OUTPUT:
+Status: DISABLED  <- Service is OFF
+Status: ENABLED   <- Service is ON
+
+Current status: True  <- Was ON
+SERVICE DISABLED!     <- Now OFF  
+New status: False     <- Confirmed OFF
+
+======================================== 
