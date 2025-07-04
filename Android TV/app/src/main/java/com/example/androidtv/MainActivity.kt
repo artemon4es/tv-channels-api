@@ -343,25 +343,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
-    /**
-     * Показывает диалог недоступности сервиса
-     */
-    private fun showServiceUnavailableDialog(message: String) {
-        runOnUiThread {
-            val displayMessage = message.ifEmpty { 
-                "Сервис временно не доступен.\nОбратитесь к администратору." 
-            }
-            
-            AlertDialog.Builder(this)
-                .setTitle("⚠️ Сервис недоступен")
-                .setMessage(displayMessage)
-                .setPositiveButton("OK") { _, _ ->
-                    finish()
-                }
-                .setCancelable(false)
-                .show()
-        }
-    }
+
     
 
     
