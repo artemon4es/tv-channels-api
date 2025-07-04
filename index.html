@@ -317,8 +317,22 @@
         // Загрузка текущей конфигурации
         async function loadCurrentConfig() {
             try {
-                const response = await fetch('./api/config.json');
-                const config = await response.json();
+                // Читаем config.json с GitHub API, а не локально
+                const response = await fetch(`https://api.github.com/repos/artemon4es/tv-channels-api/contents/api/config.json?ref=main&t=${Date.now()}`, {
+                    headers: {
+                        'Authorization': `token ${authToken}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Cache-Control': 'no-cache'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Не удалось загрузить конфигурацию: HTTP ${response.status}`);
+                }
+                
+                const fileData = await response.json();
+                const configContent = atob(fileData.content);
+                const config = JSON.parse(configContent);
                 
                 // Проверяем, изменился ли статус сервиса
                 const currentStatus = config.service_config.service_available;
@@ -852,13 +866,22 @@
                     throw new Error('Токен GitHub не настроен. Авторизуйтесь для внесения изменений.');
                 }
                 
-                // Загружаем текущий config.json
-                const response = await fetch('./api/config.json');
+                // Загружаем текущий config.json с GitHub API
+                const response = await fetch(`https://api.github.com/repos/artemon4es/tv-channels-api/contents/api/config.json?ref=main&t=${Date.now()}`, {
+                    headers: {
+                        'Authorization': `token ${authToken}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Cache-Control': 'no-cache'
+                    }
+                });
+                
                 if (!response.ok) {
                     throw new Error(`Не удалось загрузить конфигурацию: HTTP ${response.status}`);
                 }
                 
-                const config = await response.json();
+                const fileData = await response.json();
+                const configContent = atob(fileData.content);
+                const config = JSON.parse(configContent);
                 log(`🔍 DEBUG: Текущее значение ${field}: ${config.service_config?.service_available}`);
                 
                 // Обновляем поле
