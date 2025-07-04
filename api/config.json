@@ -9,13 +9,13 @@
     },
     "service_config": {
         "service_available": true,
-        "message": "Сервис временно не доступен.\\nОбратитесь к администратору.",
+        "message": "",
         "maintenance_mode": false,
         "auth_required": true,
         "auth_endpoint": "https://api.github.com/user"
     },
     "channels_config": {
-        "version": 5,
+        "version": 1751630110,
         "last_updated": "2025-07-04T12:00:00Z",
         "url": "https://artemon4es.github.io/tv-channels-api/files/channels.m3u8",
         "security_config_url": "https://artemon4es.github.io/tv-channels-api/files/security_config.xml"
