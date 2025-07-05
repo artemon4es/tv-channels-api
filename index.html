@@ -930,9 +930,9 @@
         // ===== АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ ЧЕРЕЗ GITHUB API =====
         
         async function updateConfigFieldDirect(field, value) {
+            log(`🔍 DEBUG: updateConfigFieldDirect вызвана с параметрами: field="${field}", value=${value} (тип: ${typeof value})`);
+            
             try {
-                log(`🔍 DEBUG: updateConfigFieldDirect вызвана с параметрами: field="${field}", value=${value} (тип: ${typeof value})`);
-                
                 // Проверяем наличие токена
                 if (!authToken) {
                     throw new Error('Токен GitHub не настроен. Авторизуйтесь для внесения изменений.');
@@ -955,6 +955,7 @@
                 const fileData = await response.json();
                 const configContent = atob(fileData.content);
                 const config = JSON.parse(configContent);
+                const sha = fileData.sha; // Получаем SHA здесь
                 log(`🔍 DEBUG: Текущее значение ${field}: ${config.service_config?.service_available}`);
                 
                 // Обновляем поле
@@ -974,36 +975,21 @@
                 // Сохраняем обновленный файл
                 const updatedContent = JSON.stringify(config, null, 4);
                 log(`🔍 DEBUG: Сохраняем в GitHub с содержимым: service_available = ${config.service_config?.service_available}`);
-                await updateGitHubFile('api/config.json', updatedContent, `🔧 Обновление: ${field} = ${value}`);
+                
+                // Передаем SHA в updateGitHubFile
+                await updateGitHubFile('api/config.json', updatedContent, `🔧 Обновление: ${field} = ${value}`, false, sha);
                 
                 log(`✅ ${field} обновлено на ${value}`);
                 
             } catch (error) {
-                // Проверяем на CORS ошибку (Failed to fetch означает CORS блокировку)
-                if (error.message === 'CORS_BLOCKED' || error.message === 'Failed to fetch' || error.message.includes('fetch')) {
-                    log('🚨 CORS блокировка: Веб-панель не может напрямую изменять файлы GitHub');
-                    log('💡 РЕШЕНИЕ: Используйте PowerShell команду ниже:');
-                    
-                    const serviceStatus = value;
-                    const serviceStatusValue = typeof serviceStatus === 'boolean' ? `$${serviceStatus}` : `"${serviceStatus}"`; 
-                    const powershellCmd = `$config = Get-Content api/config.json | ConvertFrom-Json; $config.service_config.service_available = ${serviceStatusValue}; $config | ConvertTo-Json -Depth 10 | Set-Content api/config.json -Encoding UTF8; git add api/config.json; git commit -m "🔧 Set service_available = ${serviceStatus}"; git push origin main`;
-                    
-                    log(`📋 КОМАНДА: ${powershellCmd}`);
-                    log('🔄 После выполнения команды обновите эту страницу');
-                    
-                    // Копируем команду в буфер обмена
-                    copyToClipboard(powershellCmd);
-                    
-                    // Не выбрасываем ошибку дальше, так как предоставили решение
-                    return;
-                }
-                
+                // Прямая обработка ошибок без PowerShell
                 log(`❌ Ошибка обновления ${field}: ${error.message}`);
+                // Выбрасываем ошибку, чтобы ее можно было отловить выше (в enable/disableService)
                 throw error;
             }
         }
         
-        async function updateGitHubFile(filePath, content, commitMessage, isBinary = false) {
+        async function updateGitHubFile(filePath, content, commitMessage, isBinary = false, sha = null) {
             try {
                 log(`🔍 DEBUG: updateGitHubFile вызвана для файла ${filePath}`);
                 
@@ -1012,24 +998,25 @@
                     throw new Error('Токен GitHub не настроен. Авторизуйтесь для внесения изменений.');
                 }
                 
-                // 1. Получаем текущий файл для SHA
-                const fileResponse = await fetch(`https://api.github.com/repos/artemon4es/tv-channels-api/contents/${filePath}`, {
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`,
-                        'X-GitHub-Api-Version': '2022-11-28',
-                        'Accept': 'application/vnd.github.v3+json'
+                // 1. Получаем SHA, если он не был передан
+                if (!sha) {
+                    const fileResponse = await fetch(`https://api.github.com/repos/artemon4es/tv-channels-api/contents/${filePath}`, {
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`,
+                            'X-GitHub-Api-Version': '2022-11-28',
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    });
+
+                    if (fileResponse.ok) {
+                        const fileData = await fileResponse.json();
+                        sha = fileData.sha;
+                    } else if (fileResponse.status === 404) {
+                        log(`📝 Файл ${filePath} не найден, создаем новый (sha=null)`);
+                        sha = null; // Убеждаемся, что SHA равен null для нового файла
+                    } else {
+                        throw new Error(`Не удалось получить файл ${filePath}: HTTP ${fileResponse.status}`);
                     }
-                });
-                
-                let sha = null;
-                if (fileResponse.ok) {
-                    const fileData = await fileResponse.json();
-                    sha = fileData.sha;
-                } else if (fileResponse.status === 404) {
-                    // Файл не существует, создаем новый
-                    log(`📝 Файл ${filePath} не найден, создаем новый`);
-                } else {
-                    throw new Error(`Не удалось получить файл ${filePath}: HTTP ${fileResponse.status}`);
                 }
                 
                 // Показываем содержимое для отладки
@@ -1038,7 +1025,7 @@
                     log(`🔍 DEBUG: Содержимое для отправки в GitHub: service_available = ${configPreview.service_config?.service_available}`);
                 }
                 
-                // 2. Обновляем файл
+                // 2. Обновляем или создаем файл
                 const updateResponse = await fetch(`https://api.github.com/repos/artemon4es/tv-channels-api/contents/${filePath}`, {
                     method: 'PUT',
                     headers: {
