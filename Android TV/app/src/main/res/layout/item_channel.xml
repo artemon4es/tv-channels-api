@@ -6,6 +6,7 @@
     android:layout_margin="6dp"
     app:cardCornerRadius="8dp"
     app:cardElevation="4dp"
+    app:cardBackgroundColor="#424242"
     android:background="@drawable/selector_channel_bg"
     android:focusable="true">
 
@@ -27,7 +28,7 @@
         <View
             android:layout_width="1dp"
             android:layout_height="match_parent"
-            android:background="@color/cardWhiteBorder"
+            android:background="#757575"
             android:layout_marginStart="8dp"
             android:layout_marginEnd="8dp" />
 
@@ -38,7 +39,11 @@
             android:layout_weight="1"
             android:text="Channel Name"
             android:textSize="16sp"
-            android:textColor="@color/white"
+            android:textColor="#FFFFFF"
+            android:shadowColor="#000000"
+            android:shadowDx="1"
+            android:shadowDy="1"
+            android:shadowRadius="2"
             android:textStyle="bold"
             android:gravity="start|center_vertical"
             android:maxLines="2"
