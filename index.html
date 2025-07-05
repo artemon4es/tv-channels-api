@@ -976,7 +976,8 @@
                 log(`✅ ${field} обновлено на ${value}`);
                 
             } catch (error) {
-                if (error.message === 'CORS_BLOCKED') {
+                // Проверяем на CORS ошибку (Failed to fetch означает CORS блокировку)
+                if (error.message === 'CORS_BLOCKED' || error.message === 'Failed to fetch' || error.message.includes('fetch')) {
                     log('🚨 CORS блокировка: Веб-панель не может напрямую изменять файлы GitHub');
                     log('💡 РЕШЕНИЕ: Используйте PowerShell команду ниже:');
                     
@@ -1032,27 +1033,21 @@
                     log(`🔍 DEBUG: Содержимое для отправки в GitHub: service_available = ${configPreview.service_config?.service_available}`);
                 }
                 
-                                // 2. Пытаемся обновить файл
-                let updateResponse;
-                try {
-                    updateResponse = await fetch(`https://api.github.com/repos/artemon4es/tv-channels-api/contents/${filePath}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Authorization': `token ${authToken}`,
-                            'Accept': 'application/vnd.github.v3+json',
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            message: commitMessage,
-                            content: isBinary ? content : btoa(unescape(encodeURIComponent(content))),
-                            sha: sha,
-                            branch: 'main'
-                        })
-                    });
-                } catch (corsError) {
-                    log('❌ CORS ошибка: Браузер блокирует запись в GitHub API');
-                    throw new Error('CORS_BLOCKED');
-                }
+                // 2. Обновляем файл
+                const updateResponse = await fetch(`https://api.github.com/repos/artemon4es/tv-channels-api/contents/${filePath}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${authToken}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: commitMessage,
+                        content: isBinary ? content : btoa(unescape(encodeURIComponent(content))),
+                        sha: sha,
+                        branch: 'main'
+                    })
+                });
                 
                 if (!updateResponse.ok) {
                     const errorData = await updateResponse.json().catch(() => ({ message: 'Unknown error' }));
