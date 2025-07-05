@@ -317,22 +317,58 @@
         // Загрузка текущей конфигурации
         async function loadCurrentConfig() {
             try {
-                // Читаем config.json с GitHub API, а не локально
-                const response = await fetch(`https://api.github.com/repos/artemon4es/tv-channels-api/contents/api/config.json?ref=main&t=${Date.now()}`, {
-                    headers: {
-                        'Authorization': `token ${authToken}`,
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Cache-Control': 'no-cache'
-                    }
-                });
+                log('🔄 Загрузка конфигурации...');
+                let config = null;
                 
-                if (!response.ok) {
-                    throw new Error(`Не удалось загрузить конфигурацию: HTTP ${response.status}`);
+                // Сначала пытаемся через GitHub API (если токен доступен)
+                if (authToken) {
+                    try {
+                        log('🔍 Попытка загрузки через GitHub API...');
+                        const response = await fetch(`https://api.github.com/repos/artemon4es/tv-channels-api/contents/api/config.json?ref=main&t=${Date.now()}`, {
+                            headers: {
+                                'Authorization': `token ${authToken}`,
+                                'Accept': 'application/vnd.github.v3+json',
+                                'Cache-Control': 'no-cache'
+                            }
+                        });
+                        
+                        if (response.ok) {
+                            const fileData = await response.json();
+                            const configContent = atob(fileData.content);
+                            config = JSON.parse(configContent);
+                            log('✅ Конфигурация загружена через GitHub API');
+                        } else {
+                            log(`⚠️ GitHub API недоступен (${response.status}), переключаемся на резервный метод`);
+                        }
+                    } catch (apiError) {
+                        log(`⚠️ GitHub API ошибка: ${apiError.message}, переключаемся на резервный метод`);
+                    }
+                } else {
+                    log('⚠️ Токен не настроен, используем резервный метод загрузки');
                 }
                 
-                const fileData = await response.json();
-                const configContent = atob(fileData.content);
-                const config = JSON.parse(configContent);
+                // Если GitHub API не сработал, используем загрузку через GitHub Pages
+                if (!config) {
+                    try {
+                        log('🔍 Попытка загрузки через GitHub Pages...');
+                        const response = await fetch(`https://artemon4es.github.io/tv-channels-api/api/config.json?t=${Date.now()}`, {
+                            headers: {
+                                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                                'Pragma': 'no-cache',
+                                'Expires': '0'
+                            }
+                        });
+                        
+                        if (response.ok) {
+                            config = await response.json();
+                            log('✅ Конфигурация загружена через GitHub Pages');
+                        } else {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+                    } catch (pagesError) {
+                        throw new Error(`Не удалось загрузить конфигурацию: ${pagesError.message}`);
+                    }
+                }
                 
                 // Проверяем, изменился ли статус сервиса
                 const currentStatus = config.service_config.service_available;
@@ -374,23 +410,57 @@
                 updateServiceStatus(config);
                 
                 // Загружаем содержимое каналов
-                const channelsResponse = await fetch('./files/channels.m3u8');
-                const channelsContent = await channelsResponse.text();
-                document.getElementById('channels-content').value = channelsContent;
+                try {
+                    log('🔍 Загрузка списка каналов...');
+                    const channelsResponse = await fetch('https://artemon4es.github.io/tv-channels-api/files/channels.m3u8?' + Date.now());
+                    if (channelsResponse.ok) {
+                        const channelsContent = await channelsResponse.text();
+                        if (document.getElementById('channels-content')) {
+                            document.getElementById('channels-content').value = channelsContent;
+                        }
+                        log('✅ Список каналов загружен');
+                    } else {
+                        log(`⚠️ Не удалось загрузить каналы: HTTP ${channelsResponse.status}`);
+                    }
+                } catch (channelsError) {
+                    log(`⚠️ Ошибка загрузки каналов: ${channelsError.message}`);
+                }
                 
                 // Предзаполняем формы текущими данными (убрано поле service-message)
                 
-                // Обновляем системную информацию
-                document.getElementById('system-status').innerHTML = `
-                    <p><strong>Сервис:</strong> ${config.service_config.service_available ? '✅ Доступен' : '❌ Недоступен'}</p>
-                    <p><strong>Версия каналов:</strong> ${config.channels_config.version}</p>
-                    <p><strong>Последнее обновление:</strong> ${new Date(config.channels_config.last_updated).toLocaleString()}</p>
-                    <p><strong>Версия APK:</strong> ${config.app_info.current_version} → ${config.app_info.latest_version}</p>
-                `;
+                // Обновляем системную информацию если элемент существует
+                const systemStatusElement = document.getElementById('system-status');
+                if (systemStatusElement && config) {
+                    systemStatusElement.innerHTML = `
+                        <p><strong>Сервис:</strong> ${config.service_config.service_available ? '✅ Доступен' : '❌ Недоступен'}</p>
+                        <p><strong>Версия каналов:</strong> ${config.channels_config.version}</p>
+                        <p><strong>Последнее обновление:</strong> ${new Date(config.channels_config.last_updated).toLocaleString()}</p>
+                        <p><strong>Версия APK:</strong> ${config.app_info.current_version} → ${config.app_info.latest_version}</p>
+                    `;
+                }
                 
-                log('✅ Конфигурация загружена');
+                if (config) {
+                    log('✅ Конфигурация успешно загружена и обработана');
+                } else {
+                    throw new Error('Не удалось загрузить конфигурацию ни одним способом');
+                }
+                
             } catch (error) {
                 log('❌ Ошибка загрузки конфигурации: ' + error.message);
+                log('💡 Проверьте интернет соединение и повторите попытку');
+                
+                // Показываем статус ошибки
+                const statusDiv = document.getElementById('service-status');
+                if (statusDiv) {
+                    statusDiv.innerHTML = `
+                        <div class="service-status-big offline">
+                            ❌ ОШИБКА ЗАГРУЗКИ КОНФИГУРАЦИИ
+                            <div style="font-size: 14px; margin-top: 10px; font-weight: normal;">
+                                ${error.message}
+                            </div>
+                        </div>
+                    `;
+                }
             }
         }
 
