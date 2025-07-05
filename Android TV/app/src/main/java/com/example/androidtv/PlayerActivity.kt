@@ -39,6 +39,8 @@ class PlayerActivity : AppCompatActivity() {
 
     private lateinit var channelList: ArrayList<Channel>
     private var channelIndex: Int = 0
+    private var digitBuffer = "" // Буфер для набора номера канала
+    private val digitInputHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -163,16 +165,109 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Обработка цифрового ввода для прямого переключения на канал
+     */
+    private fun handleDigitInput(digit: String) {
+        digitBuffer += digit
+        
+        // Показываем номер канала который набирается
+        channelNumberText.text = "Канал: $digitBuffer"
+        channelIndicator.alpha = 1f
+        channelIndicator.visibility = View.VISIBLE
+        
+        // Убираем предыдущий таймер
+        digitInputHandler.removeCallbacks(processDigitInput)
+        
+        // Если набрали больше 3 цифр, сразу переключаемся
+        if (digitBuffer.length >= 3) {
+            processDigitInput.run()
+        } else {
+            // Ждем 2 секунды после последней цифры
+            digitInputHandler.postDelayed(processDigitInput, 2000)
+        }
+    }
+    
+    private val processDigitInput = Runnable {
+        if (digitBuffer.isNotEmpty()) {
+            val channelNumber = digitBuffer.toIntOrNull()
+            if (channelNumber != null && channelNumber > 0 && channelNumber <= channelList.size) {
+                channelIndex = channelNumber - 1 // Переводим в 0-based индекс
+                playChannel(channelIndex)
+            } else {
+                Toast.makeText(this, "Канал $digitBuffer не найден", Toast.LENGTH_SHORT).show()
+                updateChannelIndicator() // Вернуть обычный индикатор
+            }
+            digitBuffer = ""
+        }
+    }
+
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if (channelList.isNotEmpty()) {
             when (keyCode) {
-                // Только Channel Up/Down для переключения каналов
-                KeyEvent.KEYCODE_CHANNEL_UP -> {
+                // Переключение каналов - поддержка разных клавиш пульта
+                KeyEvent.KEYCODE_CHANNEL_UP,
+                KeyEvent.KEYCODE_DPAD_UP,
+                KeyEvent.KEYCODE_MEDIA_NEXT,
+                KeyEvent.KEYCODE_PLUS -> {
                     nextChannel()
                     return true
                 }
-                KeyEvent.KEYCODE_CHANNEL_DOWN -> {
+                KeyEvent.KEYCODE_CHANNEL_DOWN,
+                KeyEvent.KEYCODE_DPAD_DOWN,
+                KeyEvent.KEYCODE_MEDIA_PREVIOUS,
+                KeyEvent.KEYCODE_MINUS -> {
                     previousChannel()
+                    return true
+                }
+                // Переключение каналов влево/вправо
+                KeyEvent.KEYCODE_DPAD_LEFT -> {
+                    previousChannel()
+                    return true
+                }
+                KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    nextChannel()
+                    return true
+                }
+                // Цифровые клавиши для прямого переключения на канал
+                KeyEvent.KEYCODE_0 -> {
+                    handleDigitInput("0")
+                    return true
+                }
+                KeyEvent.KEYCODE_1 -> {
+                    handleDigitInput("1")
+                    return true
+                }
+                KeyEvent.KEYCODE_2 -> {
+                    handleDigitInput("2")
+                    return true
+                }
+                KeyEvent.KEYCODE_3 -> {
+                    handleDigitInput("3")
+                    return true
+                }
+                KeyEvent.KEYCODE_4 -> {
+                    handleDigitInput("4")
+                    return true
+                }
+                KeyEvent.KEYCODE_5 -> {
+                    handleDigitInput("5")
+                    return true
+                }
+                KeyEvent.KEYCODE_6 -> {
+                    handleDigitInput("6")
+                    return true
+                }
+                KeyEvent.KEYCODE_7 -> {
+                    handleDigitInput("7")
+                    return true
+                }
+                KeyEvent.KEYCODE_8 -> {
+                    handleDigitInput("8")
+                    return true
+                }
+                KeyEvent.KEYCODE_9 -> {
+                    handleDigitInput("9")
                     return true
                 }
                 // Выход из плеера
@@ -199,5 +294,6 @@ class PlayerActivity : AppCompatActivity() {
         // Удалить все отложенные задачи
         uiHandler.removeCallbacksAndMessages(null)
         errorHandler.removeCallbacksAndMessages(null)
+        digitInputHandler.removeCallbacksAndMessages(null)
     }
 } 
