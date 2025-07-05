@@ -1,32 +1,32 @@
-﻿{
-    "app_info":  {
-                     "current_version":  "1.0",
-                     "latest_version":  "1.0",
-                     "version_code":  1,
-                     "download_url":  "",
-                     "update_required":  false,
-                     "changelog":  ""
-                 },
-    "service_config":  {
-                           "service_available":  true,
-                           "message":  "",
-                           "maintenance_mode":  false,
-                           "auth_required":  true,
-                           "auth_endpoint":  "https://api.github.com/user"
-                       },
-    "channels_config":  {
-                            "version":  5,
-                            "last_updated":  "2025-07-05T01:58:32.092Z",
-                            "url":  "https://artemon4es.github.io/tv-channels-api/files/channels.m3u8",
-                            "security_config_url":  "https://artemon4es.github.io/tv-channels-api/files/security_config.xml"
-                        },
-    "api_info":  {
-                     "version":  "1.0",
-                     "last_updated":  "2025-07-04T12:00:00Z",
-                     "endpoints":  {
-                                       "config":  "/api/config.json",
-                                       "channels":  "/files/channels.m3u8",
-                                       "security":  "/files/security_config.xml"
-                                   }
-                 }
+{
+  "app_info": {
+    "current_version": "1.0",
+    "latest_version": "1.0",
+    "version_code": 1,
+    "download_url": "",
+    "update_required": false,
+    "changelog": ""
+  },
+  "service_config": {
+    "service_available": true,
+    "message": "",
+    "maintenance_mode": false,
+    "auth_required": true,
+    "auth_endpoint": "https://api.github.com/user"
+  },
+  "channels_config": {
+    "version": 5,
+    "last_updated": "2025-07-05T01:58:32.092Z",
+    "url": "https://artemon4es.github.io/tv-channels-api/files/channels.m3u8",
+    "security_config_url": "https://artemon4es.github.io/tv-channels-api/files/security_config.xml"
+  },
+  "api_info": {
+    "version": "1.0",
+    "last_updated": "2025-07-04T12:00:00Z",
+    "endpoints": {
+      "config": "/api/config.json",
+      "channels": "/files/channels.m3u8",
+      "security": "/files/security_config.xml"
+    }
+  }
 }
