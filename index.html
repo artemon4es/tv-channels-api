@@ -976,6 +976,23 @@
                 log(`✅ ${field} обновлено на ${value}`);
                 
             } catch (error) {
+                if (error.message === 'CORS_BLOCKED') {
+                    log('🚨 CORS блокировка: Веб-панель не может напрямую изменять файлы GitHub');
+                    log('💡 РЕШЕНИЕ: Используйте PowerShell команду ниже:');
+                    
+                    const serviceStatus = value;
+                    const powershellCmd = `$config = Get-Content api/config.json | ConvertFrom-Json; $config.service_config.service_available = $${serviceStatus}; $config | ConvertTo-Json -Depth 10 | Set-Content api/config.json -Encoding UTF8; git add api/config.json; git commit -m "🔧 Set service_available = ${serviceStatus}"; git push origin main`;
+                    
+                    log(`📋 КОМАНДА: ${powershellCmd}`);
+                    log('🔄 После выполнения команды обновите эту страницу');
+                    
+                    // Копируем команду в буфер обмена
+                    copyToClipboard(powershellCmd);
+                    
+                    // Не выбрасываем ошибку дальше, так как предоставили решение
+                    return;
+                }
+                
                 log(`❌ Ошибка обновления ${field}: ${error.message}`);
                 throw error;
             }
@@ -1015,24 +1032,30 @@
                     log(`🔍 DEBUG: Содержимое для отправки в GitHub: service_available = ${configPreview.service_config?.service_available}`);
                 }
                 
-                // 2. Обновляем файл
-                const updateResponse = await fetch(`https://api.github.com/repos/artemon4es/tv-channels-api/contents/${filePath}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `token ${authToken}`,
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        message: commitMessage,
-                        content: isBinary ? content : btoa(unescape(encodeURIComponent(content))), // Для бинарных файлов content уже base64
-                        sha: sha,
-                        branch: 'main'
-                    })
-                });
+                                // 2. Пытаемся обновить файл
+                let updateResponse;
+                try {
+                    updateResponse = await fetch(`https://api.github.com/repos/artemon4es/tv-channels-api/contents/${filePath}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `token ${authToken}`,
+                            'Accept': 'application/vnd.github.v3+json',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            message: commitMessage,
+                            content: isBinary ? content : btoa(unescape(encodeURIComponent(content))),
+                            sha: sha,
+                            branch: 'main'
+                        })
+                    });
+                } catch (corsError) {
+                    log('❌ CORS ошибка: Браузер блокирует запись в GitHub API');
+                    throw new Error('CORS_BLOCKED');
+                }
                 
                 if (!updateResponse.ok) {
-                    const errorData = await updateResponse.json();
+                    const errorData = await updateResponse.json().catch(() => ({ message: 'Unknown error' }));
                     let errorMessage = `GitHub API ошибка: ${errorData.message}`;
                     
                     // Добавляем специфические подсказки для частых ошибок
@@ -1060,6 +1083,30 @@
             const timestamp = new Date().toLocaleTimeString();
             logDiv.innerHTML += `\n[${timestamp}] ${message}`;
             logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        // Функция для копирования PowerShell команды в буфер обмена
+        function copyToClipboard(text) {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(() => {
+                    log('✅ Команда скопирована в буфер обмена!');
+                }).catch(() => {
+                    log('⚠️ Скопируйте команду вручную');
+                });
+            } else {
+                // Fallback для старых браузеров
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    log('✅ Команда скопирована в буфер обмена!');
+                } catch (err) {
+                    log('⚠️ Скопируйте команду вручную');
+                }
+                document.body.removeChild(textArea);
+            }
         }
 
         // ===== СИСТЕМА АУТЕНТИФИКАЦИИ =====
