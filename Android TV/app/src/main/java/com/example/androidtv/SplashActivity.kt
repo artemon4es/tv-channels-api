@@ -37,11 +37,9 @@ class SplashActivity : AppCompatActivity() {
         scope.launch {
             val subscriptionManager = SubscriptionManager(this@SplashActivity)
             
-            // Для тестирования используем тестовый метод, 
-            // в продакшене замените на subscriptionManager.checkSubscriptionStatus()
+            // Используем реальную проверку через GitHub API
             val result = try {
-                // subscriptionManager.checkSubscriptionStatus() // Реальная проверка
-                subscriptionManager.getTestSubscriptionStatus() // Тестовая проверка
+                subscriptionManager.checkSubscriptionStatus() // Реальная проверка через GitHub API
             } catch (e: Exception) {
                 SubscriptionResult.Error("Ошибка проверки: ${e.message}")
             }
@@ -56,8 +54,8 @@ class SplashActivity : AppCompatActivity() {
                     showSubscriptionError(result.reason)
                 }
                 is SubscriptionResult.Error -> {
-                    // Ошибка проверки - можно дать доступ (offline режим) или заблокировать
-                    showConnectionError(result.error)
+                    // Ошибка проверки - даем доступ (offline режим)
+                    launchMainActivity()
                 }
             }
         }

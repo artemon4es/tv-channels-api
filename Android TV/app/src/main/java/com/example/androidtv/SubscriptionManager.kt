@@ -14,39 +14,37 @@ import java.util.*
 class SubscriptionManager(private val context: Context) {
 
     companion object {
-        // Замените на ваш реальный API URL
-        private const val API_BASE_URL = "https://your-api.com"
-        
-        // Для тестирования можно использовать Firebase Remote Config
-        // или любой другой сервис
+        // URL нашего API через GitHub Pages
+        private const val API_BASE_URL = "https://artemon4es.github.io/tv-channels-api"
     }
 
     /**
-     * Проверяет статус подписки удаленно
+     * Проверяет статус подписки удаленно через GitHub API
      */
     suspend fun checkSubscriptionStatus(): SubscriptionResult = withContext(Dispatchers.IO) {
         try {
-            val deviceId = getDeviceId()
-            val url = "$API_BASE_URL/subscription/check?device_id=$deviceId"
+            val url = "$API_BASE_URL/api/config.json"
             
             val connection = URL(url).openConnection() as HttpURLConnection
             connection.requestMethod = "GET"
             connection.connectTimeout = 10000
             connection.readTimeout = 10000
             connection.setRequestProperty("User-Agent", "AndroidTV-App/1.0")
+            connection.setRequestProperty("Cache-Control", "no-cache")
             
             val responseCode = connection.responseCode
             when (responseCode) {
                 200 -> {
                     val response = connection.inputStream.bufferedReader().readText()
-                    parseSubscriptionResponse(response)
+                    parseConfigResponse(response)
                 }
                 403 -> SubscriptionResult.Blocked("Доступ заблокирован администратором")
-                404 -> SubscriptionResult.Blocked("Устройство не найдено в системе")
+                404 -> SubscriptionResult.Error("Конфигурация не найдена")
                 else -> SubscriptionResult.Error("Ошибка сервера: $responseCode")
             }
         } catch (e: Exception) {
-            SubscriptionResult.Error("Ошибка подключения: ${e.message}")
+            // При ошибке подключения разрешаем доступ (offline режим)
+            SubscriptionResult.Active("Offline режим", null)
         }
     }
 
@@ -58,23 +56,27 @@ class SubscriptionManager(private val context: Context) {
     }
 
     /**
-     * Парсит ответ от сервера
-     * Ожидается JSON формат: {"active": true/false, "message": "text", "expires": "2024-12-31"}
+     * Парсит конфигурацию GitHub API
      */
-    private fun parseSubscriptionResponse(response: String): SubscriptionResult {
+    private fun parseConfigResponse(response: String): SubscriptionResult {
         return try {
-            // Простой парсинг без JSON библиотеки
-            val isActive = response.contains("\"active\":true") || response.contains("\"active\": true")
-            val message = extractJsonValue(response, "message")
-            val expires = extractJsonValue(response, "expires")
+            // Проверяем доступность сервиса
+            val serviceAvailable = response.contains("\"service_available\":true") || 
+                                 response.contains("\"service_available\": true")
             
-            if (isActive) {
-                SubscriptionResult.Active(message ?: "Подписка активна", expires)
+            // Извлекаем сообщение для пользователя
+            val message = extractJsonValue(response, "message")
+            
+            if (serviceAvailable) {
+                SubscriptionResult.Active("Сервис доступен", null)
             } else {
-                SubscriptionResult.Blocked(message ?: "Подписка не активна")
+                val reason = message?.takeIf { it.isNotEmpty() } 
+                    ?: "Сервис временно недоступен.\nОбратитесь к администратору."
+                SubscriptionResult.Blocked(reason)
             }
         } catch (e: Exception) {
-            SubscriptionResult.Error("Ошибка парсинга ответа")
+            // При ошибке парсинга разрешаем доступ
+            SubscriptionResult.Active("Парсинг не удался, разрешаем доступ", null)
         }
     }
 
@@ -88,18 +90,12 @@ class SubscriptionManager(private val context: Context) {
     }
 
     /**
-     * Для тестирования - временная проверка без сервера
+     * Устаревшая тестовая функция - больше не используется
      */
+    @Deprecated("Используйте checkSubscriptionStatus() вместо этой функции")
     fun getTestSubscriptionStatus(): SubscriptionResult {
-        val calendar = Calendar.getInstance()
-        val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
-        
-        return when (dayOfWeek) {
-            Calendar.SATURDAY, Calendar.SUNDAY -> 
-                SubscriptionResult.Blocked("Доступ ограничен в выходные дни")
-            else -> 
-                SubscriptionResult.Active("Тестовый доступ разрешен", "2024-12-31")
-        }
+        // Всегда возвращаем активный статус, так как теперь управление через GitHub API
+        return SubscriptionResult.Active("Тестовый режим отключен", null)
     }
 }
 
