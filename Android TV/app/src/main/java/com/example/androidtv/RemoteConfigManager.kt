@@ -249,6 +249,13 @@ class RemoteConfigManager(private val context: Context) {
     }
     
     /**
+     * Получает текущую версию каналов
+     */
+    fun getChannelVersion(): Int {
+        return prefs.getInt(KEY_CHANNEL_VERSION, 0)
+    }
+    
+    /**
      * Получает время последней проверки
      */
     fun getLastCheckTime(): Long {
