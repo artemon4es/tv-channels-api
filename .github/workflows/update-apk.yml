@@ -1,0 +1,81 @@
+name: Update APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'New version (e.g., 1.2)'
+        required: true
+        type: string
+      changelog:
+        description: 'Changelog'
+        required: true
+        type: string
+      update_required:
+        description: 'Force update required'
+        required: false
+        type: boolean
+        default: false
+      apk_base64:
+        description: 'APK file content (base64 encoded)'
+        required: true
+        type: string
+
+jobs:
+  update-apk:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Create APK file and update config
+        run: |
+          # Создаем APK файл из base64
+          APK_FILENAME="app-v${{ github.event.inputs.version }}.apk"
+          echo '${{ github.event.inputs.apk_base64 }}' | base64 -d > "files/updates/$APK_FILENAME"
+          
+          # Генерируем version code из версии
+          VERSION_CODE=$(echo "${{ github.event.inputs.version }}" | tr -d '.' | sed 's/^0*//')
+          if [ -z "$VERSION_CODE" ]; then
+            VERSION_CODE=1
+          fi
+          
+          # Обновляем config.json
+          CONFIG=$(cat api/config.json)
+          
+          # Обновляем информацию о приложении
+          echo "$CONFIG" | jq \
+            --arg version "${{ github.event.inputs.version }}" \
+            --arg version_code "$VERSION_CODE" \
+            --arg download_url "https://artemon4es.github.io/tv-channels-api/files/updates/$APK_FILENAME" \
+            --argjson update_required '${{ github.event.inputs.update_required }}' \
+            --arg changelog '${{ github.event.inputs.changelog }}' \
+            '.app_info.latest_version = $version | 
+             .app_info.version_code = ($version_code | tonumber) | 
+             .app_info.download_url = $download_url | 
+             .app_info.update_required = $update_required | 
+             .app_info.changelog = $changelog' > temp_config.json
+          
+          mv temp_config.json api/config.json
+          
+          # Форматируем JSON
+          cat api/config.json | jq . > temp.json && mv temp.json api/config.json
+
+      - name: Commit changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add "files/updates/app-v${{ github.event.inputs.version }}.apk" api/config.json
+          
+          # Проверяем есть ли изменения
+          if git diff --staged --quiet; then
+            echo "Нет изменений для коммита"
+          else
+            git commit -m "📱 Add APK v${{ github.event.inputs.version }}"
+            git push
+          fi 

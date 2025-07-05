@@ -1,0 +1,53 @@
+name: Update Channels
+
+on:
+  workflow_dispatch:
+    inputs:
+      channels_content:
+        description: 'M3U8 channels content'
+        required: true
+        type: string
+
+jobs:
+  update-channels:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Update channels.m3u8
+        run: |
+          # Создаем новый файл каналов
+          echo '${{ github.event.inputs.channels_content }}' > files/channels.m3u8
+          
+          # Генерируем новую версию на основе timestamp
+          NEW_VERSION=$(date +%s)
+          echo "Новая версия каналов: $NEW_VERSION"
+          
+          # Обновляем config.json с новой версией
+          CONFIG=$(cat api/config.json)
+          echo "$CONFIG" | jq --arg version "$NEW_VERSION" '.channels_config.version = ($version | tonumber)' > temp_config.json
+          echo "$CONFIG" | jq --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '.channels_config.last_updated = $timestamp' temp_config.json > api/config.json
+          rm temp_config.json
+          
+          # Форматируем JSON
+          cat api/config.json | jq . > temp.json && mv temp.json api/config.json
+
+      - name: Commit changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add files/channels.m3u8 api/config.json
+          
+          # Проверяем есть ли изменения
+          if git diff --staged --quiet; then
+            echo "Нет изменений для коммита"
+          else
+            git commit -m "📺 Update channels list (version $(date +%s))"
+            git push
+          fi 

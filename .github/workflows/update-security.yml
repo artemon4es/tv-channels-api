@@ -1,0 +1,54 @@
+name: Update Security Config
+
+on:
+  workflow_dispatch:
+    inputs:
+      domains:
+        description: 'Domains to add (one per line)'
+        required: true
+        type: string
+
+jobs:
+  update-security:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Update security_config.xml
+        run: |
+          # Читаем текущий security config
+          CURRENT_XML=$(cat files/security_config.xml)
+          
+          # Создаем новые домены из входных данных
+          NEW_DOMAINS=""
+          while IFS= read -r domain; do
+            if [ ! -z "$domain" ]; then
+              NEW_DOMAINS="$NEW_DOMAINS        <domain includeSubdomains=\"true\">$domain</domain>\n"
+            fi
+          done <<< '${{ github.event.inputs.domains }}'
+          
+          # Вставляем новые домены перед закрывающим тегом
+          echo "$CURRENT_XML" | sed "s|</domain-config>|$NEW_DOMAINS    </domain-config>|" > files/security_config.xml
+
+      - name: Commit changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add files/security_config.xml
+          
+          # Подсчитываем количество добавленных доменов
+          DOMAIN_COUNT=$(echo '${{ github.event.inputs.domains }}' | wc -l)
+          
+          # Проверяем есть ли изменения
+          if git diff --staged --quiet; then
+            echo "Нет изменений для коммита"
+          else
+            git commit -m "🔒 Add $DOMAIN_COUNT new security domains"
+            git push
+          fi 
