@@ -152,12 +152,9 @@ class MainActivity : AppCompatActivity() {
                 // Проверяем обновления приложения (автоматически, без диалога)
                 autoUpdateManager.checkForUpdates(remoteConfig, false)
                 
-                // Проверяем обновления каналов
-                if (remoteConfigManager.shouldUpdateChannels(remoteConfig.channelsVersion)) {
-                    updateChannelsFromRemote()
-                } else {
-                    loadChannelsFromCacheOrAssets()
-                }
+                // ВСЕГДА проверяем и обновляем каналы при запуске
+                Log.d(TAG, "Проверка обновлений каналов при запуске...")
+                updateChannelsFromRemote()
             } else {
                 // Если удаленная конфигурация недоступна, загружаем локальные данные
                 Log.w(TAG, "Удаленная конфигурация недоступна, используем локальные данные")
@@ -285,26 +282,49 @@ class MainActivity : AppCompatActivity() {
      */
     private suspend fun updateChannelsFromRemote() {
         try {
-            Log.d(TAG, "Обновление каналов из удаленного источника...")
+            Log.d(TAG, "Проверка обновлений каналов из удаленного источника...")
             
-            val channelList = remoteConfigManager.downloadChannelList()
+            // Получаем текущую конфигурацию для проверки версии
+            val remoteConfig = remoteConfigManager.checkRemoteConfig()
             
-            if (channelList != null) {
-                val parsedChannels = parseM3U8(channelList)
+            if (remoteConfig != null) {
+                val remoteVersion = remoteConfig.channelsVersion
+                val localVersion = remoteConfigManager.getChannelVersion()
                 
-                val remoteConfig = remoteConfigManager.checkRemoteConfig()
-                remoteConfig?.let {
-                    remoteConfigManager.updateChannelVersion(it.channelsVersion)
+                Log.d(TAG, "Версия каналов: локальная=$localVersion, удаленная=$remoteVersion")
+                
+                // Загружаем каналы если версия изменилась ИЛИ если локальных каналов нет
+                val cachedChannels = getCachedChannelList()
+                val shouldUpdate = remoteVersion > localVersion || cachedChannels == null
+                
+                if (shouldUpdate) {
+                    Log.d(TAG, "Обновление каналов необходимо, загружаем...")
+                    val channelList = remoteConfigManager.downloadChannelList()
+                    
+                    if (channelList != null) {
+                        val parsedChannels = parseM3U8(channelList)
+                        
+                        // Обновляем версию каналов
+                        remoteConfigManager.updateChannelVersion(remoteVersion)
+                        
+                        withContext(Dispatchers.Main) {
+                            updateChannelList(parsedChannels)
+                            if (remoteVersion > localVersion) {
+                                Toast.makeText(this@MainActivity, "Каналы обновлены до версии $remoteVersion", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                        
+                        Log.d(TAG, "Каналы успешно обновлены до версии $remoteVersion")
+                    } else {
+                        Log.w(TAG, "Не удалось загрузить каналы, используем кэш")
+                        loadChannelsFromCacheOrAssets()
+                    }
+                } else {
+                    Log.d(TAG, "Каналы актуальны (версия $remoteVersion), загружаем из кэша")
+                    loadChannelsFromCacheOrAssets()
                 }
-                
-                withContext(Dispatchers.Main) {
-                    updateChannelList(parsedChannels)
-                    Toast.makeText(this@MainActivity, "Список каналов обновлен", Toast.LENGTH_SHORT).show()
-                }
-                
-                Log.d(TAG, "Каналы успешно обновлены")
             } else {
-                Log.w(TAG, "Не удалось загрузить каналы, используем кэш")
+                Log.w(TAG, "Не удалось получить конфигурацию, используем кэш")
                 loadChannelsFromCacheOrAssets()
             }
         } catch (e: Exception) {
@@ -523,11 +543,14 @@ class MainActivity : AppCompatActivity() {
                 }
                 
                 // Проверяем обновления каналов
-                if (remoteConfigManager.shouldUpdateChannels(remoteConfig.channelsVersion)) {
-                    Log.i(TAG, "Обнаружены обновления каналов - загружаем новую версию")
+                val remoteVersion = remoteConfig.channelsVersion
+                val localVersion = remoteConfigManager.getChannelVersion()
+                
+                if (remoteVersion > localVersion) {
+                    Log.i(TAG, "Обнаружены обновления каналов: $localVersion -> $remoteVersion")
                     updateChannelsFromRemote()
                 } else {
-                    Log.d(TAG, "Каналы актуальны, версия: ${remoteConfig.channelsVersion}")
+                    Log.d(TAG, "Каналы актуальны, версия: $remoteVersion")
                 }
                 
             } else {
