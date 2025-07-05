@@ -205,7 +205,7 @@ class AutoUpdateManager(private val context: Context) {
     private fun startDownload(downloadUrl: String) {
         try {
             val request = DownloadManager.Request(Uri.parse(downloadUrl))
-                .setTitle("Обновление TV Channels")
+                .setTitle("Обновление IP_TV")
                 .setDescription("Загрузка новой версии...")
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 .setDestinationInExternalFilesDir(context, Environment.DIRECTORY_DOWNLOADS, APK_FILENAME)
