@@ -8,7 +8,7 @@
     "changelog": ""
   },
   "service_config": {
-    "service_available": true,
+    "service_available": false,
     "message": "",
     "maintenance_mode": false,
     "auth_required": true,
