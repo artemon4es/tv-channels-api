@@ -1581,90 +1581,7 @@
             return channels;
         }
 
-        // Поиск канала по точному совпадению EXTINF строки
-        function findChannelByExactExtinf(targetExtinf, sourceChannels, enableDebug = false) {
-            if (enableDebug) {
-                console.log(`🔍 Поиск точного совпадения EXTINF:`);
-                console.log(`📋 Целевая строка: ${targetExtinf}`);
-            }
-            
-            // Сначала ищем точное совпадение
-            for (const sourceChannel of sourceChannels) {
-                if (sourceChannel.extinf === targetExtinf) {
-                    if (enableDebug) {
-                        console.log(`✅ ТОЧНОЕ совпадение найдено!`);
-                        console.log(`   Канал: "${sourceChannel.name}"`);
-                        console.log(`   URL: ${sourceChannel.url.substring(0, 80)}...`);
-                    }
-                    return {
-                        channel: sourceChannel,
-                        score: 100,
-                        matchType: 'exact_extinf'
-                    };
-                }
-            }
-            
-            if (enableDebug) {
-                console.log(`❌ Точное совпадение не найдено, ищем максимально похожее...`);
-            }
-            
-            // Если точного совпадения нет, ищем максимально похожее
-            let bestMatch = null;
-            let bestScore = 0;
-            const MINIMUM_SCORE = 80; // Высокий порог для EXTINF строк
-            
-            for (const sourceChannel of sourceChannels) {
-                const similarity = calculateSimilarity(targetExtinf, sourceChannel.extinf);
-                
-                if (enableDebug && similarity > 70) {
-                    console.log(`  📊 "${sourceChannel.name}": ${similarity}% схожести`);
-                    console.log(`     ${sourceChannel.extinf.substring(0, 100)}...`);
-                }
-                
-                if (similarity > bestScore && similarity >= MINIMUM_SCORE) {
-                    bestScore = similarity;
-                    bestMatch = {
-                        channel: sourceChannel,
-                        score: similarity,
-                        matchType: 'similar_extinf'
-                    };
-                }
-            }
-            
-            if (enableDebug) {
-                if (bestMatch) {
-                    console.log(`✅ Найдено похожее совпадение: "${bestMatch.channel.name}" (${bestMatch.score}%)`);
-                } else {
-                    console.log(`❌ Подходящих совпадений не найдено (порог ${MINIMUM_SCORE}%)`);
-                }
-                console.log('---');
-            }
-            
-            return bestMatch;
-        }
 
-        // Поиск канала в TARGET_CHANNELS по имени (упрощенная версия для совместимости)
-        function findChannelByKeywords(channelName, targetChannels, enableDebug = false) {
-            const normalizedName = channelName.toLowerCase().trim();
-            
-            // Точное совпадение имени
-            for (const target of targetChannels) {
-                if (normalizedName === target.name.toLowerCase()) {
-                    return target;
-                }
-            }
-            
-            // Совпадение с ключевыми словами
-            for (const target of targetChannels) {
-                for (const keyword of target.keywords) {
-                    if (normalizedName === keyword.toLowerCase()) {
-                        return target;
-                    }
-                }
-            }
-            
-            return null;
-        }
 
         // Обновление URL каналов (улучшенная версия)
         function updateChannelUrls(currentChannels, newChannels) {
@@ -1687,55 +1604,82 @@
                     console.log(`🔍 === ОБРАБОТКА КАНАЛА: "${current.name}" ===`);
                 }
                 
-                // Ищем точное совпадение EXTINF строки в новых каналах
-                if (window.channelDebugMode) {
-                    console.log(`🔍 === ОБРАБОТКА КАНАЛА: "${current.name}" ===`);
-                    console.log(`📋 Ищем EXTINF: ${current.extinf}`);
-                }
+                // Ищем полный объект канала в TARGET_CHANNELS по EXTINF строке
+                const targetChannel = TARGET_CHANNELS.find(tc => tc.extinf === current.extinf);
                 
-                const bestMatch = findChannelByExactExtinf(current.extinf, newChannels, window.channelDebugMode);
-                
-                if (bestMatch) {
-                    const foundChannel = bestMatch.channel;
+                if (targetChannel) {
+                    if (window.channelDebugMode) {
+                        console.log(`📋 Найден в TARGET_CHANNELS: id="${targetChannel.id}", keywords=[${targetChannel.keywords.join(', ')}]`);
+                    }
                     
-                    if (current.url !== foundChannel.url) {
-                        const oldUrlShort = current.url.substring(0, 60) + '...';
-                        const newUrlShort = foundChannel.url.substring(0, 60) + '...';
+                    const bestMatch = findChannelByKeyFields(targetChannel, newChannels, window.channelDebugMode);
+                    
+                    if (bestMatch) {
+                        const foundChannel = bestMatch.channel;
                         
-                        updateInfo = `✅ ${bestMatch.matchType === 'exact_extinf' ? 'ТОЧНОЕ' : 'ПОХОЖЕЕ'} совпадение: "${foundChannel.name}" (${bestMatch.score}%)`;
-                        updateLog.push(`🔄 "${current.name}" → "${foundChannel.name}" (${bestMatch.score}%)`);
-                        
-                        log(updateInfo);
-                        log(`🔄 URL: ${oldUrlShort} → ${newUrlShort}`);
-                        
-                        // Обновляем URL, сохраняя остальные параметры канала
-                        current.url = foundChannel.url;
-                        channelUpdated = true;
-                        updated++;
-                        
-                        if (window.channelDebugMode) {
-                            console.log(`✅ ОБНОВЛЕН: URL изменен`);
-                            console.log(`   Старый: ${current.url.substring(0, 80)}...`);
-                            console.log(`   Новый:  ${foundChannel.url.substring(0, 80)}...`);
+                        if (current.url !== foundChannel.url) {
+                            const oldUrlShort = current.url.substring(0, 60) + '...';
+                            const newUrlShort = foundChannel.url.substring(0, 60) + '...';
+                            
+                            let matchTypeText = '';
+                            switch (bestMatch.matchType) {
+                                case 'exact_extinf': matchTypeText = 'ТОЧНОЕ EXTINF'; break;
+                                case 'tvg_id': matchTypeText = 'TVG-ID'; break;
+                                case 'name_keywords': matchTypeText = 'НАЗВАНИЕ/КЛЮЧЕВЫЕ СЛОВА'; break;
+                                default: matchTypeText = 'НЕИЗВЕСТНО'; break;
+                            }
+                            
+                            updateInfo = `✅ ${matchTypeText}: "${foundChannel.name}" (${bestMatch.score}%)`;
+                            updateLog.push(`🔄 "${current.name}" → "${foundChannel.name}" (${bestMatch.score}%)`);
+                            
+                            log(updateInfo);
+                            log(`🔄 URL: ${oldUrlShort} → ${newUrlShort}`);
+                            
+                            // Обновляем URL, сохраняя остальные параметры канала
+                            current.url = foundChannel.url;
+                            channelUpdated = true;
+                            updated++;
+                            
+                            if (window.channelDebugMode) {
+                                console.log(`✅ ОБНОВЛЕН: URL изменен`);
+                                console.log(`   Старый: ${current.url.substring(0, 80)}...`);
+                                console.log(`   Новый:  ${foundChannel.url.substring(0, 80)}...`);
+                            }
+                        } else {
+                            let matchTypeText = '';
+                            switch (bestMatch.matchType) {
+                                case 'exact_extinf': matchTypeText = 'ТОЧНОЕ EXTINF'; break;
+                                case 'tvg_id': matchTypeText = 'TVG-ID'; break;
+                                case 'name_keywords': matchTypeText = 'НАЗВАНИЕ/КЛЮЧЕВЫЕ СЛОВА'; break;
+                                default: matchTypeText = 'НЕИЗВЕСТНО'; break;
+                            }
+                            
+                            updateInfo = `✅ ${matchTypeText}: "${foundChannel.name}" (${bestMatch.score}%) - URL актуален`;
+                            log(updateInfo);
+                            
+                            if (window.channelDebugMode) {
+                                console.log(`✅ НАЙДЕН: URL уже актуален`);
+                            }
                         }
                     } else {
-                        updateInfo = `✅ ${bestMatch.matchType === 'exact_extinf' ? 'ТОЧНОЕ' : 'ПОХОЖЕЕ'} совпадение: "${foundChannel.name}" (${bestMatch.score}%) - URL актуален`;
+                        updateInfo = `❌ Совпадение не найдено (порог схожести 70% для названий/ключевых слов)`;
                         log(updateInfo);
                         
                         if (window.channelDebugMode) {
-                            console.log(`✅ НАЙДЕН: URL уже актуален`);
+                            console.log(`❌ НЕ НАЙДЕН: нет подходящих совпадений`);
                         }
                     }
                 } else {
-                    updateInfo = `❌ Совпадение не найдено (порог схожести 80% для EXTINF)`;
+                    updateInfo = `⚠️ Канал не найден в TARGET_CHANNELS, пропускаем`;
                     log(updateInfo);
                     
                     if (window.channelDebugMode) {
-                        console.log(`❌ НЕ НАЙДЕН: нет подходящих совпадений`);
+                        console.log(`⚠️ ПРОПУСК: канал не найден в TARGET_CHANNELS`);
+                        console.log(`   EXTINF: ${current.extinf}`);
                     }
                 }
                 
-                // Восстанавливаем канал в списке
+                // Добавляем канал в обновленный список
                 updatedChannels.push(current);
                 
                 if (window.channelDebugMode) {
@@ -1743,18 +1687,16 @@
                 }
             }
             
+            log(`✅ Обновлено ${updated} каналов`);
+            
             if (window.channelDebugMode) {
                 console.log('🔄 === ЗАВЕРШЕНИЕ ПРОЦЕССА ОБНОВЛЕНИЯ ===');
-                console.log(`📊 Всего обработано: ${currentChannels.length}`);
-                console.log(`✅ Обновлено: ${updated}`);
-                console.log(`📝 Сводка обновлений:`, updateLog);
+                console.log(`📊 Итого обновлено: ${updated} каналов`);
+                if (updateLog.length > 0) {
+                    console.log('📝 Журнал обновлений:');
+                    updateLog.forEach(logEntry => console.log(`   ${logEntry}`));
+                }
                 console.log('');
-            }
-            
-            // Выводим сводку в лог админ-панели
-            if (updated > 0) {
-                log(`📊 Сводка обновлений:`);
-                updateLog.forEach(info => log(info));
             }
             
             return {
@@ -2585,6 +2527,102 @@
                 btn.style.background = '#6c757d';
                 log('🔧 Режим диагностики каналов отключен.');
             }
+        }
+
+        // Поиск канала по ключевым полям: tvg-id, название, логотип
+        function findChannelByKeyFields(targetChannel, sourceChannels, enableDebug = false) {
+            if (enableDebug) {
+                console.log(`🔍 Поиск канала: "${targetChannel.name}"`);
+                console.log(`🆔 Целевой tvg-id: ${targetChannel.id}`);
+                console.log(`📺 Целевое название: ${targetChannel.name}`);
+            }
+            
+            // 1. ПРИОРИТЕТ: Поиск по tvg-id + точное название
+            for (const sourceChannel of sourceChannels) {
+                if (sourceChannel.extinf.includes(`tvg-id="${targetChannel.id}"`)) {
+                    const sourceName = extractChannelName(sourceChannel.extinf);
+                    if (sourceName && sourceName.toLowerCase() === targetChannel.name.toLowerCase()) {
+                        if (enableDebug) {
+                            console.log(`✅ ТОЧНОЕ совпадение по tvg-id + название: "${sourceName}"`);
+                            console.log(`📋 EXTINF: ${sourceChannel.extinf}`);
+                            console.log(`🔗 URL: ${sourceChannel.url}`);
+                        }
+                        return { channel: sourceChannel, score: 100, type: 'ID+NAME' };
+                    }
+                }
+            }
+            
+            // 2. Поиск по tvg-id + ключевые слова из названия
+            const targetKeywords = extractKeywords(targetChannel.name);
+            if (enableDebug) {
+                console.log(`🔑 Ключевые слова целевого канала: [${targetKeywords.join(', ')}]`);
+            }
+            
+            for (const sourceChannel of sourceChannels) {
+                if (sourceChannel.extinf.includes(`tvg-id="${targetChannel.id}"`)) {
+                    const sourceName = extractChannelName(sourceChannel.extinf);
+                    if (sourceName) {
+                        const sourceKeywords = extractKeywords(sourceName);
+                        const matchedKeywords = targetKeywords.filter(kw => 
+                            sourceKeywords.some(skw => skw.includes(kw) || kw.includes(skw))
+                        );
+                        
+                        if (matchedKeywords.length >= targetKeywords.length * 0.7) { // 70% совпадение ключевых слов
+                            if (enableDebug) {
+                                console.log(`✅ ХОРОШЕЕ совпадение по tvg-id + ключевые слова: "${sourceName}"`);
+                                console.log(`🔑 Совпадающие слова: [${matchedKeywords.join(', ')}]`);
+                                console.log(`📋 EXTINF: ${sourceChannel.extinf}`);
+                                console.log(`🔗 URL: ${sourceChannel.url}`);
+                            }
+                            return { channel: sourceChannel, score: 90, type: 'ID+KEYWORDS' };
+                        }
+                    }
+                }
+            }
+            
+            // 3. Поиск по tvg-id (любой канал с таким ID)
+            for (const sourceChannel of sourceChannels) {
+                if (sourceChannel.extinf.includes(`tvg-id="${targetChannel.id}"`)) {
+                    const sourceName = extractChannelName(sourceChannel.extinf);
+                    if (enableDebug) {
+                        console.log(`⚠️ ЧАСТИЧНОЕ совпадение только по tvg-id: "${sourceName}"`);
+                        console.log(`📋 EXTINF: ${sourceChannel.extinf}`);
+                        console.log(`🔗 URL: ${sourceChannel.url}`);
+                    }
+                    return { channel: sourceChannel, score: 70, type: 'ID_ONLY' };
+                }
+            }
+            
+            // 4. ПОСЛЕДНИЙ ШАНС: Поиск по похожести строк (если tvg-id не найден)
+            let bestMatch = null;
+            let bestScore = 0;
+            
+            for (const sourceChannel of sourceChannels) {
+                const similarity = calculateLevenshteinSimilarity(
+                    removeExtinfPrefix(targetChannel.extinf),
+                    removeExtinfPrefix(sourceChannel.extinf)
+                );
+                
+                if (similarity > bestScore && similarity >= 60) {
+                    bestScore = similarity;
+                    bestMatch = sourceChannel;
+                }
+            }
+            
+            if (bestMatch) {
+                const sourceName = extractChannelName(bestMatch.extinf);
+                if (enableDebug) {
+                    console.log(`⚠️ ПОХОЖЕЕ совпадение (${bestScore}%): "${sourceName}"`);
+                    console.log(`📋 EXTINF: ${bestMatch.extinf}`);
+                    console.log(`🔗 URL: ${bestMatch.url}`);
+                }
+                return { channel: bestMatch, score: bestScore, type: 'SIMILARITY' };
+            }
+            
+            if (enableDebug) {
+                console.log(`❌ Канал не найден: "${targetChannel.name}"`);
+            }
+            return null;
         }
 
     </script>
