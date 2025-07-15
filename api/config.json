@@ -15,8 +15,8 @@
     "auth_endpoint": "https://api.github.com/user"
   },
   "channels_config": {
-    "version": "1752568470515",
-    "last_updated": "2025-07-15T08:34:30.514Z",
+    "version": "1752571780729",
+    "last_updated": "2025-07-15T09:29:40.729Z",
     "url": "https://artemon4es.github.io/tv-channels-api/files/channels.m3u8",
     "security_config_url": "https://artemon4es.github.io/tv-channels-api/files/security_config.xml"
   },
