@@ -68,31 +68,6 @@ jobs:
         cat > update_channels.js << 'EOF'
         const fs = require('fs');
         
-        // Список целевых каналов для обновления
-        const TARGET_CHANNELS = [
-            { id: 'pervy', name: 'Первый канал HD', keywords: ['Первый канал', '1TV', 'Перв', 'Первый'] },
-            { id: 'rossia1', name: 'Россия 1 HD', keywords: ['Россия 1', 'Rossiya', 'Russia 1'] },
-            { id: 'rossia-24', name: 'Россия-24', keywords: ['Россия-24', 'Rossiya-24', 'Russia-24'] },
-            { id: 'kultura', name: 'Россия Культура', keywords: ['Россия Культура', 'Kultura', 'Russia K'] },
-            { id: 'ntv', name: 'НТВ HD', keywords: ['НТВ', 'NTV'] },
-            { id: 'tnt', name: 'ТНТ HD', keywords: ['ТНТ', 'TNT'] },
-            { id: 'sts', name: 'СТС HD', keywords: ['СТС', 'STS'] },
-            { id: 'tv3-ru', name: 'ТВ-3 HD', keywords: ['ТВ-3', 'TV3', 'TV-3'] },
-            { id: 'zvezda', name: 'Звезда HD', keywords: ['Звезда', 'Zvezda'] },
-            { id: 'rentv', name: 'Рен ТВ HD', keywords: ['Рен ТВ', 'REN TV', 'REN-TV'] },
-            { id: 'tvcentr', name: 'ТВ Центр HD', keywords: ['ТВ Центр', 'TV Center', 'TV Centre'] },
-            { id: '5kanal-ru', name: '5 канал Россия', keywords: ['5 канал', '5-й канал', '5-kanal'] },
-            { id: 'domashny', name: 'Домашний HD', keywords: ['Домашний', 'Domashny'] },
-            { id: 'pyatnica', name: 'Пятница HD', keywords: ['Пятница', 'Friday'] },
-            { id: 'mir', name: 'Мир HD', keywords: ['Мир', 'Mir'] },
-            { id: 'otr', name: 'ОТР HD', keywords: ['ОТР', 'OTR'] },
-            { id: 'rbk', name: 'РБК', keywords: ['РБК', 'RBK'] },
-            { id: 'spas', name: 'Спас', keywords: ['Спас', 'Spas'] },
-            { id: 'karusel', name: 'Карусель HD', keywords: ['Карусель', 'Karusel'] },
-            { id: 'muztv', name: 'Муз ТВ HD', keywords: ['Муз ТВ', 'MuzTV', 'MTV'] },
-            { id: 'match-tv', name: 'Матч! HD', keywords: ['Матч!', 'Match!', 'Match TV'] }
-        ];
-        
         // Парсинг M3U файла
         function parseM3U(content) {
             const lines = content.split('\n');
@@ -103,17 +78,8 @@ jobs:
                 const line = lines[i].trim();
                 
                 if (line.startsWith('#EXTINF:')) {
-                    const tvgIdMatch = line.match(/tvg-id="([^"]*)"/);
-                    const tvgLogoMatch = line.match(/tvg-logo="([^"]*)"/);
-                    const groupTitleMatch = line.match(/group-title="([^"]*)"/);
-                    const nameMatch = line.match(/,(.+)$/);
-                    
                     currentChannel = {
-                        extinf: line,
-                        tvgId: tvgIdMatch ? tvgIdMatch[1] : '',
-                        tvgLogo: tvgLogoMatch ? tvgLogoMatch[1] : '',
-                        groupTitle: groupTitleMatch ? groupTitleMatch[1] : '',
-                        name: nameMatch ? nameMatch[1] : '',
+                        extinfLine: line,
                         url: ''
                     };
                 } else if (line && !line.startsWith('#') && currentChannel) {
@@ -126,23 +92,18 @@ jobs:
             return channels;
         }
         
-
-        
-        // Поиск целевого канала по названию (для обратной совместимости)
-        function findTargetByName(channelName, targetChannels) {
-            const normalizedName = channelName.toLowerCase();
+        // Поиск канала по точному совпадению строки #EXTINF
+        function findChannelByExtinfLine(extinfLine, sourceChannels) {
+            console.log(`🔍 Ищем точное совпадение для: ${extinfLine}`);
             
-            for (const target of targetChannels) {
-                if (target.name.toLowerCase() === normalizedName) {
-                    return target;
-                }
-                for (const keyword of target.keywords) {
-                    if (normalizedName.includes(keyword.toLowerCase())) {
-                        return target;
-                    }
+            for (const source of sourceChannels) {
+                if (source.extinfLine === extinfLine) {
+                    console.log(`✅ ТОЧНОЕ совпадение найдено!`);
+                    return source;
                 }
             }
             
+            console.log(`❌ Точное совпадение НЕ найдено`);
             return null;
         }
         
@@ -154,111 +115,46 @@ jobs:
         const currentChannels = parseM3U(currentContent);
         const sourceChannels = parseM3U(sourceContent);
         
-        console.log(`📊 Текущие каналы: ${currentChannels.length}, новые: ${sourceChannels.length}`);
+        console.log(`📊 Текущие каналы: ${currentChannels.length}, источник: ${sourceChannels.length}`);
         
-        // Обновляем ссылки
+        console.log(`\n📋 Каналы в источнике (#EXTINF строки):`);
+        sourceChannels.forEach((ch, idx) => {
+            console.log(`   ${idx + 1}. ${ch.extinfLine}`);
+        });
+        
+        // Обновляем ссылки по точному совпадению строк #EXTINF
         let updated = 0;
         const updatedChannels = [];
         
         for (const current of currentChannels) {
-            const targetChannel = findTargetByName(current.name, TARGET_CHANNELS);
-            if (targetChannel) {
-                console.log(`🔍 Ищем обновление для канала: "${current.name}" (tvg-id: ${targetChannel.id})`);
-                
-                // Ищем в источнике канал с соответствующим tvg-id
-                let foundSource = null;
-                
-                // 1. Точное совпадение по tvg-id + название
-                for (const source of sourceChannels) {
-                    if (source.tvgId === targetChannel.id) {
-                        if (source.name.toLowerCase() === targetChannel.name.toLowerCase()) {
-                            foundSource = source;
-                            console.log(`✅ ТОЧНОЕ совпадение tvg-id + название: "${source.name}"`);
-                            break;
-                        }
-                    }
-                }
-                
-                // 2. Совпадение по tvg-id + ключевые слова
-                if (!foundSource) {
-                    for (const source of sourceChannels) {
-                        if (source.tvgId === targetChannel.id) {
-                            const sourceName = source.name.toLowerCase();
-                            for (const keyword of targetChannel.keywords) {
-                                if (sourceName.includes(keyword.toLowerCase())) {
-                                    foundSource = source;
-                                    console.log(`✅ ХОРОШЕЕ совпадение tvg-id + ключевые слова: "${source.name}"`);
-                                    break;
-                                }
-                            }
-                            if (foundSource) break;
-                        }
-                    }
-                }
-                
-                // 3. Любой канал с таким tvg-id
-                if (!foundSource) {
-                    for (const source of sourceChannels) {
-                        if (source.tvgId === targetChannel.id) {
-                            foundSource = source;
-                            console.log(`⚠️ ЧАСТИЧНОЕ совпадение только по tvg-id: "${source.name}"`);
-                            break;
-                        }
-                    }
-                }
-                
-                // 4. FALLBACK: Поиск по названию и ключевым словам (для каналов без tvg-id)
-                if (!foundSource) {
-                    console.log(`🔍 Fallback: ищем по названию и ключевым словам для "${targetChannel.name}"`);
-                    
-                    // Сначала точное совпадение названия (с удалением пробелов)
-                    for (const source of sourceChannels) {
-                        if (source.name.trim().toLowerCase() === targetChannel.name.trim().toLowerCase()) {
-                            foundSource = source;
-                            console.log(`✅ ТОЧНОЕ совпадение по названию: "${source.name.trim()}"`);
-                            break;
-                        }
-                    }
-                    
-                    // Потом по ключевым словам
-                    if (!foundSource) {
-                        for (const source of sourceChannels) {
-                            const sourceName = source.name.toLowerCase();
-                            for (const keyword of targetChannel.keywords) {
-                                if (sourceName.includes(keyword.toLowerCase())) {
-                                    foundSource = source;
-                                    console.log(`✅ СОВПАДЕНИЕ по ключевому слову "${keyword}": "${source.name}"`);
-                                    break;
-                                }
-                            }
-                            if (foundSource) break;
-                        }
-                    }
-                }
-                
-                if (foundSource) {
-                    if (current.url !== foundSource.url) {
-                        console.log(`🔄 Обновляем "${current.name}": ${current.url.substring(0, 50)}... → ${foundSource.url.substring(0, 50)}...`);
-                        current.url = foundSource.url;
-                        updated++;
-                    } else {
-                        console.log(`✅ URL уже актуален для "${current.name}"`);
-                    }
+            console.log(`\n🎯 Обрабатываем канал:`);
+            console.log(`   ${current.extinfLine}`);
+            
+            const foundSource = findChannelByExtinfLine(current.extinfLine, sourceChannels);
+            
+            if (foundSource) {
+                if (current.url !== foundSource.url) {
+                    console.log(`🔄 Обновляем URL:`);
+                    console.log(`   СТАРЫЙ: ${current.url.substring(0, 80)}...`);
+                    console.log(`   НОВЫЙ:  ${foundSource.url.substring(0, 80)}...`);
+                    current.url = foundSource.url;
+                    updated++;
                 } else {
-                    console.log(`❌ Не найден источник для "${current.name}" с tvg-id: ${targetChannel.id}`);
+                    console.log(`✅ URL уже актуален`);
                 }
             } else {
-                console.log(`⚠️ Канал не входит в список обновляемых: "${current.name}"`);
+                console.log(`❌ Канал не найден в источнике`);
             }
+            
             updatedChannels.push(current);
         }
         
-        console.log(`✅ Обновлено ${updated} каналов`);
+        console.log(`\n📊 ИТОГО обновлено: ${updated} каналов`);
         
         // Генерируем новый M3U файл
         let newContent = '#EXTM3U\n';
         for (const channel of updatedChannels) {
-            newContent += `${channel.extinf}\n`;
+            newContent += `${channel.extinfLine}\n`;
             newContent += `${channel.url}\n\n`;
         }
         
