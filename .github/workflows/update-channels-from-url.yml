@@ -211,11 +211,11 @@ jobs:
                 if (!foundSource) {
                     console.log(`🔍 Fallback: ищем по названию и ключевым словам для "${targetChannel.name}"`);
                     
-                    // Сначала точное совпадение названия
+                    // Сначала точное совпадение названия (с удалением пробелов)
                     for (const source of sourceChannels) {
-                        if (source.name.toLowerCase() === targetChannel.name.toLowerCase()) {
+                        if (source.name.trim().toLowerCase() === targetChannel.name.trim().toLowerCase()) {
                             foundSource = source;
-                            console.log(`✅ ТОЧНОЕ совпадение по названию: "${source.name}"`);
+                            console.log(`✅ ТОЧНОЕ совпадение по названию: "${source.name.trim()}"`);
                             break;
                         }
                     }

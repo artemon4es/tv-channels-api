@@ -2598,12 +2598,12 @@
                 console.log(`🔍 Fallback: ищем по названию и ключевым словам для "${targetChannel.name}"`);
             }
             
-            // 4a. Точное совпадение названия
+            // 4a. Точное совпадение названия (с удалением пробелов)
             for (const sourceChannel of sourceChannels) {
                 const sourceName = extractChannelName(sourceChannel.extinf);
-                if (sourceName && sourceName.toLowerCase() === targetChannel.name.toLowerCase()) {
+                if (sourceName && sourceName.trim().toLowerCase() === targetChannel.name.trim().toLowerCase()) {
                     if (enableDebug) {
-                        console.log(`✅ ТОЧНОЕ совпадение по названию: "${sourceName}"`);
+                        console.log(`✅ ТОЧНОЕ совпадение по названию: "${sourceName.trim()}"`);
                         console.log(`📋 EXTINF: ${sourceChannel.extinf}`);
                         console.log(`🔗 URL: ${sourceChannel.url}`);
                     }
