@@ -20,6 +20,7 @@
 
     <!-- IPTV потоки - разрешить HTTP и HTTPS -->
     <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">live-mirror-01.ott.tricolor.tv</domain>
         <domain includeSubdomains="true">tricolor.tv</domain>
         <domain includeSubdomains="true">ott.tricolor.tv</domain>
         <domain includeSubdomains="true">cdnvideo.ru</domain>
