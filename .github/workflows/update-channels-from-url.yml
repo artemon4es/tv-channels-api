@@ -1,0 +1,258 @@
+name: Update Channels from URL
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_url:
+        description: 'URL источника M3U8 файла'
+        required: true
+        type: string
+      update_type:
+        description: 'Тип обновления: manual или auto-check'
+        required: true
+        default: 'manual'
+        type: string
+
+env:
+  REPO_NAME: ${{ github.repository }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  update-channels:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 1
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Download source M3U8 file
+      id: download
+      run: |
+        echo "Загрузка источника: ${{ github.event.inputs.source_url }}"
+        
+        # Проверяем доступность URL
+        if ! curl -f -s -I "${{ github.event.inputs.source_url }}" > /dev/null; then
+          echo "❌ URL недоступен: ${{ github.event.inputs.source_url }}"
+          exit 1
+        fi
+        
+        # Скачиваем файл
+        curl -f -s "${{ github.event.inputs.source_url }}" -o source.m3u8
+        
+        # Проверяем что это валидный M3U файл
+        if ! grep -q "#EXTM3U" source.m3u8; then
+          echo "❌ Файл не является валидным M3U8"
+          exit 1
+        fi
+        
+        echo "✅ Источник успешно загружен"
+        echo "source_size=$(wc -l < source.m3u8)" >> $GITHUB_OUTPUT
+
+    - name: Parse and update channels
+      id: update
+      run: |
+        echo "Обработка каналов..."
+        
+        # Создаем Node.js скрипт для обработки
+        cat > update_channels.js << 'EOF'
+        const fs = require('fs');
+        
+        // Список целевых каналов для обновления
+        const TARGET_CHANNELS = [
+            { id: 'pervy', name: 'Первый канал HD', keywords: ['Первый канал', '1TV', 'Перв', 'Первый'] },
+            { id: 'rossia1', name: 'Россия 1 HD', keywords: ['Россия 1', 'Rossiya', 'Russia 1'] },
+            { id: 'rossia-24', name: 'Россия-24', keywords: ['Россия-24', 'Rossiya-24', 'Russia-24'] },
+            { id: 'kultura', name: 'Россия Культура', keywords: ['Россия Культура', 'Kultura', 'Russia K'] },
+            { id: 'ntv', name: 'НТВ HD', keywords: ['НТВ', 'NTV'] },
+            { id: 'tnt', name: 'ТНТ HD', keywords: ['ТНТ', 'TNT'] },
+            { id: 'sts', name: 'СТС HD', keywords: ['СТС', 'STS'] },
+            { id: 'tv3-ru', name: 'ТВ-3 HD', keywords: ['ТВ-3', 'TV3', 'TV-3'] },
+            { id: 'zvezda', name: 'Звезда HD', keywords: ['Звезда', 'Zvezda'] },
+            { id: 'rentv', name: 'Рен ТВ HD', keywords: ['Рен ТВ', 'REN TV', 'REN-TV'] },
+            { id: 'tvcentr', name: 'ТВ Центр HD', keywords: ['ТВ Центр', 'TV Center', 'TV Centre'] },
+            { id: '5kanal-ru', name: '5 канал Россия', keywords: ['5 канал', '5-й канал', '5-kanal'] },
+            { id: 'domashny', name: 'Домашний HD', keywords: ['Домашний', 'Domashny'] },
+            { id: 'pyatnica', name: 'Пятница HD', keywords: ['Пятница', 'Friday'] },
+            { id: 'mir', name: 'Мир HD', keywords: ['Мир', 'Mir'] },
+            { id: 'otr', name: 'ОТР HD', keywords: ['ОТР', 'OTR'] },
+            { id: 'rbk', name: 'РБК', keywords: ['РБК', 'RBK'] },
+            { id: 'spas', name: 'Спас', keywords: ['Спас', 'Spas'] },
+            { id: 'karusel', name: 'Карусель HD', keywords: ['Карусель', 'Karusel'] },
+            { id: 'muztv', name: 'Муз ТВ HD', keywords: ['Муз ТВ', 'MuzTV', 'MTV'] },
+            { id: 'match-tv', name: 'Матч! HD', keywords: ['Матч!', 'Match!', 'Match TV'] }
+        ];
+        
+        // Парсинг M3U файла
+        function parseM3U(content) {
+            const lines = content.split('\n');
+            const channels = [];
+            let currentChannel = null;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                
+                if (line.startsWith('#EXTINF:')) {
+                    const tvgIdMatch = line.match(/tvg-id="([^"]*)"/);
+                    const tvgLogoMatch = line.match(/tvg-logo="([^"]*)"/);
+                    const groupTitleMatch = line.match(/group-title="([^"]*)"/);
+                    const nameMatch = line.match(/,(.+)$/);
+                    
+                    currentChannel = {
+                        extinf: line,
+                        tvgId: tvgIdMatch ? tvgIdMatch[1] : '',
+                        tvgLogo: tvgLogoMatch ? tvgLogoMatch[1] : '',
+                        groupTitle: groupTitleMatch ? groupTitleMatch[1] : '',
+                        name: nameMatch ? nameMatch[1] : '',
+                        url: ''
+                    };
+                } else if (line && !line.startsWith('#') && currentChannel) {
+                    currentChannel.url = line;
+                    channels.push(currentChannel);
+                    currentChannel = null;
+                }
+            }
+            
+            return channels;
+        }
+        
+        // Поиск канала по ключевым словам
+        function findChannelByKeywords(channelName, targetChannels) {
+            const normalizedName = channelName.toLowerCase();
+            
+            for (const target of targetChannels) {
+                for (const keyword of target.keywords) {
+                    if (normalizedName.includes(keyword.toLowerCase())) {
+                        return target;
+                    }
+                }
+            }
+            
+            return null;
+        }
+        
+        // Загружаем файлы
+        const currentContent = fs.readFileSync('files/channels.m3u8', 'utf8');
+        const sourceContent = fs.readFileSync('source.m3u8', 'utf8');
+        
+        // Парсим
+        const currentChannels = parseM3U(currentContent);
+        const sourceChannels = parseM3U(sourceContent);
+        
+        console.log(`📊 Текущие каналы: ${currentChannels.length}, новые: ${sourceChannels.length}`);
+        
+        // Обновляем ссылки
+        let updated = 0;
+        const updatedChannels = [];
+        
+        for (const current of currentChannels) {
+            const targetChannel = findChannelByKeywords(current.name, TARGET_CHANNELS);
+            if (targetChannel) {
+                // Ищем соответствующий канал в новом списке
+                for (const source of sourceChannels) {
+                    if (findChannelByKeywords(source.name, [targetChannel])) {
+                        if (current.url !== source.url) {
+                            console.log(`🔄 Обновляем "${current.name}"`);
+                            current.url = source.url;
+                            updated++;
+                        }
+                        break;
+                    }
+                }
+            }
+            updatedChannels.push(current);
+        }
+        
+        console.log(`✅ Обновлено ${updated} каналов`);
+        
+        // Генерируем новый M3U файл
+        let newContent = '#EXTM3U\n';
+        for (const channel of updatedChannels) {
+            newContent += `${channel.extinf}\n`;
+            newContent += `${channel.url}\n\n`;
+        }
+        
+        // Сохраняем
+        fs.writeFileSync('files/channels.m3u8', newContent);
+        
+        // Выводим результат
+        console.log(`UPDATED_COUNT=${updated}`);
+        process.exit(updated > 0 ? 0 : 1);
+        EOF
+        
+        # Запускаем скрипт
+        if node update_channels.js > update_output.txt 2>&1; then
+          UPDATED_COUNT=$(grep "UPDATED_COUNT=" update_output.txt | cut -d'=' -f2)
+          echo "updated_count=${UPDATED_COUNT}" >> $GITHUB_OUTPUT
+          echo "has_changes=true" >> $GITHUB_OUTPUT
+          cat update_output.txt
+        else
+          echo "has_changes=false" >> $GITHUB_OUTPUT
+          echo "updated_count=0" >> $GITHUB_OUTPUT
+          cat update_output.txt
+        fi
+
+    - name: Update config version
+      if: steps.update.outputs.has_changes == 'true'
+      run: |
+        echo "Обновление конфигурации..."
+        
+        # Обновляем timestamp в config.json
+        node -e "
+        const fs = require('fs');
+        const config = JSON.parse(fs.readFileSync('api/config.json', 'utf8'));
+        config.channels_config.last_updated = new Date().toISOString();
+        config.channels_config.version = Date.now().toString();
+        fs.writeFileSync('api/config.json', JSON.stringify(config, null, 2));
+        console.log('✅ Конфигурация обновлена');
+        "
+
+    - name: Commit and push changes
+      if: steps.update.outputs.has_changes == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        git add files/channels.m3u8
+        git add api/config.json
+        
+        # Определяем источник для коммита
+        SOURCE_HOST=$(echo "${{ github.event.inputs.source_url }}" | sed 's|https\?://||' | cut -d'/' -f1)
+        UPDATE_TYPE="${{ github.event.inputs.update_type }}"
+        UPDATED_COUNT="${{ steps.update.outputs.updated_count }}"
+        
+        if [ "$UPDATE_TYPE" = "auto-check" ]; then
+          COMMIT_MSG="🤖 Auto-update channels from ${SOURCE_HOST} (${UPDATED_COUNT} updated)"
+        else
+          COMMIT_MSG="📺 Manual update channels from ${SOURCE_HOST} (${UPDATED_COUNT} updated)"
+        fi
+        
+        git commit -m "$COMMIT_MSG"
+        git push
+
+    - name: Summary
+      run: |
+        echo "## 📊 Результат обновления каналов" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Источник:** ${{ github.event.inputs.source_url }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Тип обновления:** ${{ github.event.inputs.update_type }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Размер источника:** ${{ steps.download.outputs.source_size }} строк" >> $GITHUB_STEP_SUMMARY
+        echo "- **Обновлено каналов:** ${{ steps.update.outputs.updated_count }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Есть изменения:** ${{ steps.update.outputs.has_changes }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ steps.update.outputs.has_changes }}" = "true" ]; then
+          echo "✅ **Каналы успешно обновлены!**" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "ℹ️ **Подходящие каналы для обновления не найдены**" >> $GITHUB_STEP_SUMMARY
+        fi 
