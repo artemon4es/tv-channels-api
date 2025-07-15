@@ -19,11 +19,40 @@ local.properties
 *.apk
 !files/updates/*.apk
 
+# Log файлы
+*.log
+
 # Временные файлы
 *.tmp
 *.temp
-*.log
-*.backup
+*~
+
+# Файлы Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Файлы IDE
+.vscode/
+*.swp
+*.swo
+
+# Системные файлы
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# MacOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Java heap dumps и профайлинг
+*.hprof
+*.prof
+hs_err_pid*.log
 
 # Ключи подписи (безопасность)
 *.jks
