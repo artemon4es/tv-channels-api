@@ -2593,7 +2593,43 @@
                 }
             }
             
-            // 4. ПОСЛЕДНИЙ ШАНС: Поиск по похожести строк (если tvg-id не найден)
+            // 4. FALLBACK: Поиск по названию и ключевым словам (для каналов без tvg-id)
+            if (enableDebug) {
+                console.log(`🔍 Fallback: ищем по названию и ключевым словам для "${targetChannel.name}"`);
+            }
+            
+            // 4a. Точное совпадение названия
+            for (const sourceChannel of sourceChannels) {
+                const sourceName = extractChannelName(sourceChannel.extinf);
+                if (sourceName && sourceName.toLowerCase() === targetChannel.name.toLowerCase()) {
+                    if (enableDebug) {
+                        console.log(`✅ ТОЧНОЕ совпадение по названию: "${sourceName}"`);
+                        console.log(`📋 EXTINF: ${sourceChannel.extinf}`);
+                        console.log(`🔗 URL: ${sourceChannel.url}`);
+                    }
+                    return { channel: sourceChannel, score: 85, type: 'NAME_EXACT' };
+                }
+            }
+            
+            // 4b. Совпадение по ключевым словам
+            for (const sourceChannel of sourceChannels) {
+                const sourceName = extractChannelName(sourceChannel.extinf);
+                if (sourceName) {
+                    const sourceNameLower = sourceName.toLowerCase();
+                    for (const keyword of targetKeywords) {
+                        if (sourceNameLower.includes(keyword.toLowerCase())) {
+                            if (enableDebug) {
+                                console.log(`✅ СОВПАДЕНИЕ по ключевому слову "${keyword}": "${sourceName}"`);
+                                console.log(`📋 EXTINF: ${sourceChannel.extinf}`);
+                                console.log(`🔗 URL: ${sourceChannel.url}`);
+                            }
+                            return { channel: sourceChannel, score: 80, type: 'KEYWORD_MATCH' };
+                        }
+                    }
+                }
+            }
+            
+            // 5. ПОСЛЕДНИЙ ШАНС: Поиск по похожести строк
             let bestMatch = null;
             let bestScore = 0;
             
