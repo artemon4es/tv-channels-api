@@ -126,11 +126,16 @@ jobs:
             return channels;
         }
         
-        // Поиск канала по ключевым словам
-        function findChannelByKeywords(channelName, targetChannels) {
+
+        
+        // Поиск целевого канала по названию (для обратной совместимости)
+        function findTargetByName(channelName, targetChannels) {
             const normalizedName = channelName.toLowerCase();
             
             for (const target of targetChannels) {
+                if (target.name.toLowerCase() === normalizedName) {
+                    return target;
+                }
                 for (const keyword of target.keywords) {
                     if (normalizedName.includes(keyword.toLowerCase())) {
                         return target;
@@ -156,19 +161,65 @@ jobs:
         const updatedChannels = [];
         
         for (const current of currentChannels) {
-            const targetChannel = findChannelByKeywords(current.name, TARGET_CHANNELS);
+            const targetChannel = findTargetByName(current.name, TARGET_CHANNELS);
             if (targetChannel) {
-                // Ищем соответствующий канал в новом списке
+                console.log(`🔍 Ищем обновление для канала: "${current.name}" (tvg-id: ${targetChannel.id})`);
+                
+                // Ищем в источнике канал с соответствующим tvg-id
+                let foundSource = null;
+                
+                // 1. Точное совпадение по tvg-id + название
                 for (const source of sourceChannels) {
-                    if (findChannelByKeywords(source.name, [targetChannel])) {
-                        if (current.url !== source.url) {
-                            console.log(`🔄 Обновляем "${current.name}"`);
-                            current.url = source.url;
-                            updated++;
+                    if (source.tvgId === targetChannel.id) {
+                        if (source.name.toLowerCase() === targetChannel.name.toLowerCase()) {
+                            foundSource = source;
+                            console.log(`✅ ТОЧНОЕ совпадение tvg-id + название: "${source.name}"`);
+                            break;
                         }
-                        break;
                     }
                 }
+                
+                // 2. Совпадение по tvg-id + ключевые слова
+                if (!foundSource) {
+                    for (const source of sourceChannels) {
+                        if (source.tvgId === targetChannel.id) {
+                            const sourceName = source.name.toLowerCase();
+                            for (const keyword of targetChannel.keywords) {
+                                if (sourceName.includes(keyword.toLowerCase())) {
+                                    foundSource = source;
+                                    console.log(`✅ ХОРОШЕЕ совпадение tvg-id + ключевые слова: "${source.name}"`);
+                                    break;
+                                }
+                            }
+                            if (foundSource) break;
+                        }
+                    }
+                }
+                
+                // 3. Любой канал с таким tvg-id
+                if (!foundSource) {
+                    for (const source of sourceChannels) {
+                        if (source.tvgId === targetChannel.id) {
+                            foundSource = source;
+                            console.log(`⚠️ ЧАСТИЧНОЕ совпадение только по tvg-id: "${source.name}"`);
+                            break;
+                        }
+                    }
+                }
+                
+                if (foundSource) {
+                    if (current.url !== foundSource.url) {
+                        console.log(`🔄 Обновляем "${current.name}": ${current.url.substring(0, 50)}... → ${foundSource.url.substring(0, 50)}...`);
+                        current.url = foundSource.url;
+                        updated++;
+                    } else {
+                        console.log(`✅ URL уже актуален для "${current.name}"`);
+                    }
+                } else {
+                    console.log(`❌ Не найден источник для "${current.name}" с tvg-id: ${targetChannel.id}`);
+                }
+            } else {
+                console.log(`⚠️ Канал не входит в список обновляемых: "${current.name}"`);
             }
             updatedChannels.push(current);
         }
