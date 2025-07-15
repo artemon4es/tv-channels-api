@@ -1,5 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
+    <!-- Доверяем системным сертификатам для HTTPS соединений -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+    
+    <!-- GitHub Pages API для удаленной конфигурации -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">github.io</domain>
+        <domain includeSubdomains="true">githubusercontent.com</domain>
+        <domain includeSubdomains="true">github.com</domain>
+        <domain includeSubdomains="true">api.github.com</domain>
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </domain-config>
+
+    <!-- IPTV потоки - разрешить HTTP и HTTPS -->
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">tricolor.tv</domain>
         <domain includeSubdomains="true">ott.tricolor.tv</domain>
@@ -15,10 +34,12 @@
         <domain includeSubdomains="true">dmi3y-tv.ru</domain>
         <domain includeSubdomains="true">tvhls.pskovline.tv</domain>
         <domain includeSubdomains="true">spas.mediacdn.ru</domain>
-        <!-- GitHub Pages API -->
-        <domain includeSubdomains="true">github.io</domain>
-        <domain includeSubdomains="true">githubusercontent.com</domain>
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
     </domain-config>
+    
+    <!-- CDN потоки -->
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">a3285275077-zabava-htlive.cdn.ngenix.net</domain>
         <domain includeSubdomains="true">a3285275591-zabava-htlive.cdn.ngenix.net</domain>
@@ -39,5 +60,8 @@
         <domain includeSubdomains="true">icecast-vgtrk.cdnvideo.ru</domain>
         <domain includeSubdomains="true">online.video.rbc.ru</domain>
         <domain includeSubdomains="true">online-video.rbc.ru</domain>
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
     </domain-config>
 </network-security-config> 
