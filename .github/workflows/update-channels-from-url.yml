@@ -207,6 +207,35 @@ jobs:
                     }
                 }
                 
+                // 4. FALLBACK: Поиск по названию и ключевым словам (для каналов без tvg-id)
+                if (!foundSource) {
+                    console.log(`🔍 Fallback: ищем по названию и ключевым словам для "${targetChannel.name}"`);
+                    
+                    // Сначала точное совпадение названия
+                    for (const source of sourceChannels) {
+                        if (source.name.toLowerCase() === targetChannel.name.toLowerCase()) {
+                            foundSource = source;
+                            console.log(`✅ ТОЧНОЕ совпадение по названию: "${source.name}"`);
+                            break;
+                        }
+                    }
+                    
+                    // Потом по ключевым словам
+                    if (!foundSource) {
+                        for (const source of sourceChannels) {
+                            const sourceName = source.name.toLowerCase();
+                            for (const keyword of targetChannel.keywords) {
+                                if (sourceName.includes(keyword.toLowerCase())) {
+                                    foundSource = source;
+                                    console.log(`✅ СОВПАДЕНИЕ по ключевому слову "${keyword}": "${source.name}"`);
+                                    break;
+                                }
+                            }
+                            if (foundSource) break;
+                        }
+                    }
+                }
+                
                 if (foundSource) {
                     if (current.url !== foundSource.url) {
                         console.log(`🔄 Обновляем "${current.name}": ${current.url.substring(0, 50)}... → ${foundSource.url.substring(0, 50)}...`);
