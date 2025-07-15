@@ -17,7 +17,11 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
+        debug {
+            minifyEnabled false
+        }
     }
+    
     buildFeatures {
         viewBinding true
     }
@@ -47,8 +51,7 @@ dependencies {
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.window:window:1.4.0'
     
-    // Для работы с GitHub Pages API
-    implementation 'org.json:json:20240303'
+    // Для работы с GitHub Pages API (JSON уже включен в Android SDK)
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
     implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.7.0'
     
