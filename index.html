@@ -269,6 +269,7 @@
                         <div style="margin-top: 10px;">
                             <button class="btn" onclick="checkSourceChanges()">🔍 Проверить сейчас</button>
                             <button class="btn btn-danger" onclick="disableAutoUpdate()">⏹️ Отключить</button>
+                            <button class="btn" onclick="toggleChannelDebug()" id="debug-btn" style="background: #6c757d; color: white; margin-left: 5px;">🔧 Диагностика</button>
                         </div>
                         <div style="margin-top: 10px; font-size: 12px; color: #666;">
                             ⏰ Автопроверка: 2 раза в сутки (08:00 и 20:00 UTC)
@@ -1352,29 +1353,31 @@
 
         // ===== НОВЫЕ ФУНКЦИИ ДЛЯ АВТОМАТИЧЕСКОГО И РУЧНОГО ОБНОВЛЕНИЯ КАНАЛОВ =====
 
-        // Список каналов для парсинга (из custom.m3u8)
+        // Список каналов для парсинга (из custom.m3u8) - точные названия и ключевые слова
         const TARGET_CHANNELS = [
-            { id: 'pervy', name: 'Первый канал HD', keywords: ['Первый канал', '1TV', 'Перв', 'Первый'] },
-            { id: 'rossia1', name: 'Россия 1 HD', keywords: ['Россия 1', 'Rossiya', 'Russia 1'] },
-            { id: 'rossia-24', name: 'Россия-24', keywords: ['Россия-24', 'Rossiya-24', 'Russia-24'] },
-            { id: 'kultura', name: 'Россия Культура', keywords: ['Россия Культура', 'Kultura', 'Russia K'] },
-            { id: 'ntv', name: 'НТВ HD', keywords: ['НТВ', 'NTV'] },
-            { id: 'tnt', name: 'ТНТ HD', keywords: ['ТНТ', 'TNT'] },
-            { id: 'sts', name: 'СТС HD', keywords: ['СТС', 'STS'] },
-            { id: 'tv3-ru', name: 'ТВ-3 HD', keywords: ['ТВ-3', 'TV3', 'TV-3'] },
-            { id: 'zvezda', name: 'Звезда HD', keywords: ['Звезда', 'Zvezda'] },
-            { id: 'rentv', name: 'Рен ТВ HD', keywords: ['Рен ТВ', 'REN TV', 'REN-TV'] },
-            { id: 'tvcentr', name: 'ТВ Центр HD', keywords: ['ТВ Центр', 'TV Center', 'TV Centre'] },
-            { id: '5kanal-ru', name: '5 канал Россия', keywords: ['5 канал', '5-й канал', '5-kanal'] },
-            { id: 'domashny', name: 'Домашний HD', keywords: ['Домашний', 'Domashny'] },
-            { id: 'pyatnica', name: 'Пятница HD', keywords: ['Пятница', 'Friday'] },
-            { id: 'mir', name: 'Мир HD', keywords: ['Мир', 'Mir'] },
-            { id: 'otr', name: 'ОТР HD', keywords: ['ОТР', 'OTR'] },
-            { id: 'rbk', name: 'РБК', keywords: ['РБК', 'RBK'] },
-            { id: 'spas', name: 'Спас', keywords: ['Спас', 'Spas'] },
-            { id: 'karusel', name: 'Карусель HD', keywords: ['Карусель', 'Karusel'] },
-            { id: 'muztv', name: 'Муз ТВ HD', keywords: ['Муз ТВ', 'MuzTV', 'MTV'] },
-            { id: 'match-tv', name: 'Матч! HD', keywords: ['Матч!', 'Match!', 'Match TV'] }
+            { id: 'pervy', name: 'Первый канал HD', keywords: ['Первый канал HD', 'Первый канал', '1TV HD', '1TV', 'Первый HD'] },
+            { id: 'rossia1', name: 'Россия 1 HD', keywords: ['Россия 1 HD', 'Россия 1', 'Rossiya 1 HD', 'Russia 1 HD', 'Rossiya 1'] },
+            { id: 'rossia-24', name: 'Россия-24', keywords: ['Россия-24', 'Россия 24', 'Rossiya-24', 'Russia-24', 'Russia 24'] },
+            { id: 'kultura', name: 'Россия Культура', keywords: ['Россия Культура', 'Культура', 'Russia K', 'Kultura', 'Russia Kultura'] },
+            { id: 'ntv', name: 'НТВ HD', keywords: ['НТВ HD', 'НТВ', 'NTV HD', 'NTV'] },
+            { id: 'ntv-mir', name: 'НТВ-Мир', keywords: ['НТВ-Мир', 'NTV-Mir', 'НТВ Мир'] },
+            { id: 'tnt', name: 'ТНТ HD', keywords: ['ТНТ HD', 'ТНТ', 'TNT HD', 'TNT'] },
+            { id: 'sts', name: 'СТС HD', keywords: ['СТС HD', 'STS HD', 'СТС-HD'] },
+            { id: 'tv3-ru', name: 'ТВ-3 HD', keywords: ['ТВ-3 HD', 'ТВ-3', 'TV3 HD', 'TV-3 HD', 'ТВ3 HD'] },
+            { id: 'zvezda', name: 'Звезда HD', keywords: ['Звезда HD', 'Звезда', 'Zvezda HD', 'Zvezda'] },
+            { id: 'rentv', name: 'Рен ТВ HD', keywords: ['Рен ТВ HD', 'Рен ТВ', 'REN TV HD', 'REN-TV HD', 'РЕН ТВ HD'] },
+            { id: 'tvcentr', name: 'ТВ Центр HD', keywords: ['ТВ Центр HD', 'ТВ Центр', 'TV Center HD', 'TVC HD', 'ТВЦ HD'] },
+            { id: '5kanal-ru', name: '5 канал Россия', keywords: ['5 канал Россия', '5 канал', '5-й канал', 'Пятый канал'] },
+            { id: 'domashny', name: 'Домашний HD', keywords: ['Домашний HD', 'Домашний', 'Domashny HD', 'Домашний канал HD'] },
+            { id: 'pyatnica', name: 'Пятница HD', keywords: ['Пятница HD', 'Пятница', 'Friday HD', 'Friday'] },
+            { id: 'mir', name: 'Мир HD', keywords: ['Мир HD', 'Мир ТВ', 'Mir HD'] },
+            { id: 'mir-24', name: 'Мир 24', keywords: ['Мир 24', 'Mir 24'] },
+            { id: 'otr', name: 'ОТР HD', keywords: ['ОТР HD', 'ОТР', 'OTR HD', 'OTR'] },
+            { id: 'rbk', name: 'РБК HD', keywords: ['РБК HD', 'РБК', 'RBK HD', 'RBK'] },
+            { id: 'spas', name: 'Спас', keywords: ['Спас', 'Spas', 'Спас ТВ'] },
+            { id: 'karusel', name: 'Карусель HD', keywords: ['Карусель HD', 'Карусель', 'Karusel HD', 'Karusel'] },
+            { id: 'muztv', name: 'Муз ТВ HD', keywords: ['Муз ТВ HD', 'Муз ТВ', 'MuzTV HD', 'Муз-ТВ HD'] },
+            { id: 'match-tv', name: 'Матч! HD', keywords: ['Матч! HD', 'Матч!', 'Match! HD', 'Match TV HD', 'Матч ТВ HD'] }
         ];
 
         // Парсинг M3U файла
@@ -1412,16 +1415,63 @@
             return channels;
         }
 
-        // Поиск канала в списке по ключевым словам
-        function findChannelByKeywords(channelName, targetChannels) {
-            const normalizedName = channelName.toLowerCase();
+        // Поиск канала в списке по ключевым словам (улучшенная логика с диагностикой)
+        function findChannelByKeywords(channelName, targetChannels, enableDebug = false) {
+            const normalizedName = channelName.toLowerCase().trim();
             
+            if (enableDebug) {
+                console.log(`🔍 Поиск для: "${channelName}" (нормализовано: "${normalizedName}")`);
+            }
+            
+            // Сначала ищем точное совпадение (наивысший приоритет)
+            for (const target of targetChannels) {
+                if (normalizedName === target.name.toLowerCase()) {
+                    if (enableDebug) {
+                        console.log(`✅ Найдено точное совпадение имени: "${target.name}"`);
+                    }
+                    return target;
+                }
+            }
+            
+            // Затем ищем точное совпадение с ключевыми словами
             for (const target of targetChannels) {
                 for (const keyword of target.keywords) {
-                    if (normalizedName.includes(keyword.toLowerCase())) {
+                    if (normalizedName === keyword.toLowerCase()) {
+                        if (enableDebug) {
+                            console.log(`✅ Найдено точное совпадение ключевого слова: "${keyword}" для "${target.name}"`);
+                        }
                         return target;
                     }
                 }
+            }
+            
+            // Затем ищем полное слово (не подстроку)
+            for (const target of targetChannels) {
+                for (const keyword of target.keywords) {
+                    const regex = new RegExp(`\\b${keyword.toLowerCase()}\\b`, 'i');
+                    if (regex.test(normalizedName)) {
+                        if (enableDebug) {
+                            console.log(`✅ Найдено совпадение полного слова: "${keyword}" для "${target.name}"`);
+                        }
+                        return target;
+                    }
+                }
+            }
+            
+            // В крайнем случае используем старую логику подстроки, но только для длинных ключевых слов (3+ символа)
+            for (const target of targetChannels) {
+                for (const keyword of target.keywords) {
+                    if (keyword.length >= 3 && normalizedName.includes(keyword.toLowerCase())) {
+                        if (enableDebug) {
+                            console.log(`✅ Найдено совпадение подстроки: "${keyword}" для "${target.name}"`);
+                        }
+                        return target;
+                    }
+                }
+            }
+            
+            if (enableDebug) {
+                console.log(`❌ Совпадений не найдено`);
             }
             
             return null;
@@ -1795,21 +1845,32 @@
                 let channelUpdated = false;
                 
                 // Ищем канал в новом списке
-                const targetChannel = findChannelByKeywords(current.name, TARGET_CHANNELS);
+                const targetChannel = findChannelByKeywords(current.name, TARGET_CHANNELS, window.channelDebugMode || false);
                 if (targetChannel) {
+                    log(`🔍 Ищем обновления для "${current.name}" (target: ${targetChannel.name})`);
+                    
                     // Ищем соответствующий канал в новом списке
                     for (const newChannel of newChannels) {
-                        if (findChannelByKeywords(newChannel.name, [targetChannel])) {
+                        if (findChannelByKeywords(newChannel.name, [targetChannel], window.channelDebugMode || false)) {
                             // Найден канал - обновляем URL
                             if (current.url !== newChannel.url) {
-                                log(`🔄 Обновляем "${current.name}": ${current.url.substring(0, 50)}... → ${newChannel.url.substring(0, 50)}...`);
+                                log(`✅ Найден: "${newChannel.name}" для "${current.name}"`);
+                                log(`🔄 Обновляем URL: ${current.url.substring(0, 60)}... → ${newChannel.url.substring(0, 60)}...`);
                                 current.url = newChannel.url;
                                 channelUpdated = true;
                                 updated++;
+                            } else {
+                                log(`✅ Найден: "${newChannel.name}" для "${current.name}" (URL уже актуален)`);
                             }
                             break;
                         }
                     }
+                    
+                    if (!channelUpdated) {
+                        log(`❌ Не найдено обновлений для "${current.name}"`);
+                    }
+                } else {
+                    log(`⚠️ Канал "${current.name}" не найден в списке целевых каналов`);
                 }
                 
                 // Восстанавливаем канал в новом списке
@@ -2271,6 +2332,22 @@
                 updateBtn.textContent = '🔄 Обновить каналы';
             }
         }
+        // Переключение режима диагностики каналов
+        function toggleChannelDebug() {
+            window.channelDebugMode = !window.channelDebugMode;
+            const btn = document.getElementById('debug-btn');
+            
+            if (window.channelDebugMode) {
+                btn.innerHTML = '🔧 Диагностика ВКЛ';
+                btn.style.background = '#28a745';
+                log('🔧 Режим диагностики каналов включен. Проверьте консоль браузера (F12) для детальной информации.');
+            } else {
+                btn.innerHTML = '🔧 Диагностика';
+                btn.style.background = '#6c757d';
+                log('🔧 Режим диагностики каналов отключен.');
+            }
+        }
+
     </script>
     </div> <!-- Закрытие main-content -->
 </body>
