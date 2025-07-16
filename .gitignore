@@ -67,6 +67,9 @@ Desktop.ini
 .env
 config.local.*
 
+# Документация изменений (локальная)
+CHANGELOG_CLOUD_MANAGEMENT.md
+
 # Build output
 Android\ TV/app/build/
 Android\ TV/build/
