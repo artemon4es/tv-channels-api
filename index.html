@@ -392,6 +392,65 @@
                     </div>
                 </div>
 
+                <!-- Управление логотипами каналов -->
+                <div class="section">
+                    <h3>📺 Управление логотипами каналов</h3>
+                    <div style="background: #f0f8ff; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #007bff;">
+                        <h4>📊 Текущая версия логотипов</h4>
+                        <p style="margin: 5px 0; font-size: 14px; color: #0056b3;">
+                            <strong>Версия:</strong> <span id="logos-version">Загрузка...</span>
+                        </p>
+                        <p style="margin: 5px 0; font-size: 14px; color: #0056b3;">
+                            <strong>Последнее обновление:</strong> <span id="logos-last-updated">Загрузка...</span>
+                        </p>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <h4>📁 Загрузка логотипов</h4>
+                        <input type="file" id="channel-logos-files" accept="image/png,image/jpg,image/jpeg" multiple style="margin: 10px 0;">
+                        <div style="font-size: 12px; color: #666; margin-bottom: 10px;">
+                            Выберите несколько файлов PNG/JPG. Имена файлов должны соответствовать каналам (например: ntv.png, sts.png)
+                        </div>
+                        <button class="btn btn-success" onclick="uploadChannelLogos()" id="upload-logos-btn">📺 Загрузить логотипы</button>
+                        <button class="btn" onclick="loadChannelLogosInfo()" style="background: #6c757d;">🔄 Обновить информацию</button>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <h4>🎨 Быстрая загрузка отдельного логотипа</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; align-items: end;">
+                            <div>
+                                <label>Название канала:</label>
+                                <input type="text" id="single-logo-channel" placeholder="НТВ" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            <div>
+                                <label>Файл логотипа:</label>
+                                <input type="file" id="single-logo-file" accept="image/png,image/jpg,image/jpeg" style="width: 100%;">
+                            </div>
+                            <div>
+                                <button class="btn" onclick="uploadSingleChannelLogo()" style="background: #17a2b8; color: white;">🎯 Загрузить</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 5px; border-left: 4px solid #ffc107;">
+                        <p style="margin: 0; font-size: 12px; color: #856404;">
+                            <strong>ℹ️ Как это работает:</strong><br>
+                            1. Загрузите логотипы каналов в формате PNG/JPG<br>
+                            2. Файлы автоматически загрузятся в GitHub репозиторий<br>
+                            3. Версия логотипов обновится автоматически<br>
+                            4. Приложения получат новые логотипы в течение 30 минут
+                        </p>
+                    </div>
+                    
+                    <div style="margin-top: 15px;">
+                        <h4>🖼️ Текущие логотипы каналов</h4>
+                        <div id="current-channel-logos" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 5px;">
+                            <div style="text-align: center; color: #666;">Загрузка...</div>
+                        </div>
+                        <button class="btn" onclick="loadCurrentChannelLogos()" style="background: #6c757d; margin-top: 10px;">🔄 Обновить список</button>
+                    </div>
+                </div>
+
                 <!-- Безопасность -->
                 <div class="section">
                     <h3>🔒 Настройки безопасности</h3>
@@ -556,8 +615,9 @@
                     `;
                 }
                 
-                // Обновляем информацию о заставке
+                // Обновляем информацию о заставке и логотипах
                 updateSplashInfo(config);
+                updateChannelLogosInfo(config);
                 
                 if (config) {
                     log('✅ Конфигурация успешно загружена и обработана');
@@ -2681,6 +2741,216 @@
                 reader.onerror = () => reject(new Error('Ошибка чтения файла'));
                 reader.readAsDataURL(file);
             });
+        }
+
+        // ===== ФУНКЦИИ УПРАВЛЕНИЯ ЛОГОТИПАМИ КАНАЛОВ =====
+        
+        // Обновление информации о логотипах каналов
+        function updateChannelLogosInfo(config) {
+            if (config && config.channel_logos_config) {
+                const versionElement = document.getElementById('logos-version');
+                const lastUpdatedElement = document.getElementById('logos-last-updated');
+                
+                if (versionElement) {
+                    versionElement.textContent = config.channel_logos_config.version || 1;
+                }
+                
+                if (lastUpdatedElement) {
+                    const lastUpdated = config.channel_logos_config.last_updated || new Date().toISOString();
+                    lastUpdatedElement.textContent = new Date(lastUpdated).toLocaleString('ru-RU');
+                }
+            }
+        }
+        
+        // Загрузка информации о логотипах каналов
+        async function loadChannelLogosInfo() {
+            try {
+                log('🔄 Обновление информации о логотипах каналов...');
+                await loadCurrentConfig();
+                await loadCurrentChannelLogos();
+                log('✅ Информация о логотипах каналов обновлена');
+            } catch (error) {
+                log(`❌ Ошибка обновления информации о логотипах: ${error.message}`);
+            }
+        }
+        
+        // Загрузка текущих логотипов каналов
+        async function loadCurrentChannelLogos() {
+            try {
+                const logosContainer = document.getElementById('current-channel-logos');
+                logosContainer.innerHTML = '<div style="text-align: center; color: #666;">Загрузка...</div>';
+                
+                const logoNames = [
+                    'rossiya-1.png', 'ntv.png', 'rossiya-24.png', 'kultura.png',
+                    'tnt.png', 'sts.png', 'tv-3.png', 'tvzvezda.png', 'ren_tv.png',
+                    'tvc.png', '5-kanal.png', 'domashniy.png', 'friday.png', 'mir.png',
+                    'otr.png', 'rbc.png', 'muz.png', 'karusel.png', 'spas.png', 'ortl.png'
+                ];
+                
+                const timestamp = Date.now();
+                let logosHtml = '';
+                
+                for (const logoName of logoNames) {
+                    const logoUrl = `https://artemon4es.github.io/tv-channels-api/files/channel-logos/${logoName}?t=${timestamp}`;
+                    const channelName = logoName.replace('.png', '').replace('_', ' ').toUpperCase();
+                    
+                    logosHtml += `
+                        <div style="text-align: center; padding: 5px;">
+                            <img src="${logoUrl}" alt="${channelName}" 
+                                 style="width: 80px; height: 60px; object-fit: contain; border: 1px solid #ddd; border-radius: 4px; background: white;"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <div style="display: none; width: 80px; height: 60px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa; 
+                                        display: flex; align-items: center; justify-content: center; font-size: 10px; color: #666;">
+                                Нет изображения
+                            </div>
+                            <div style="font-size: 10px; margin-top: 2px; color: #666;">${channelName}</div>
+                        </div>
+                    `;
+                }
+                
+                logosContainer.innerHTML = logosHtml;
+                log('✅ Список логотипов каналов обновлен');
+            } catch (error) {
+                log(`❌ Ошибка загрузки логотипов каналов: ${error.message}`);
+                document.getElementById('current-channel-logos').innerHTML = 
+                    '<div style="text-align: center; color: red;">Ошибка загрузки</div>';
+            }
+        }
+        
+        // Загрузка нескольких логотипов каналов
+        async function uploadChannelLogos() {
+            const filesInput = document.getElementById('channel-logos-files');
+            const files = filesInput.files;
+            
+            if (files.length === 0) {
+                log('⚠️ Выберите файлы логотипов для загрузки');
+                return;
+            }
+            
+            if (!authToken) {
+                log('❌ Токен GitHub не настроен. Авторизуйтесь для загрузки логотипов.');
+                return;
+            }
+            
+            const uploadBtn = document.getElementById('upload-logos-btn');
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = '⏳ Загрузка...';
+            
+            try {
+                log(`📺 Начало загрузки ${files.length} логотипов каналов...`);
+                
+                let uploadedCount = 0;
+                let errorCount = 0;
+                
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    try {
+                        log(`📁 Загрузка ${file.name}...`);
+                        await uploadImageToGitHub(file, `files/channel-logos/${file.name}`);
+                        uploadedCount++;
+                        log(`✅ ${file.name} загружен`);
+                    } catch (error) {
+                        errorCount++;
+                        log(`❌ Ошибка загрузки ${file.name}: ${error.message}`);
+                    }
+                }
+                
+                log(`🎉 Загрузка завершена: ${uploadedCount} успешно, ${errorCount} ошибок`);
+                log('⏳ GitHub Action автоматически обновит версию логотипов...');
+                log('📱 Приложения получат обновления в течение 30 минут');
+                
+                // Очищаем поле выбора файлов
+                filesInput.value = '';
+                
+                // Обновляем информацию через несколько секунд
+                setTimeout(loadChannelLogosInfo, 3000);
+                
+            } catch (error) {
+                log(`❌ Ошибка загрузки логотипов: ${error.message}`);
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = '📺 Загрузить логотипы';
+            }
+        }
+        
+        // Загрузка одного логотипа канала
+        async function uploadSingleChannelLogo() {
+            const channelName = document.getElementById('single-logo-channel').value.trim();
+            const fileInput = document.getElementById('single-logo-file');
+            const file = fileInput.files[0];
+            
+            if (!channelName) {
+                log('⚠️ Введите название канала');
+                return;
+            }
+            
+            if (!file) {
+                log('⚠️ Выберите файл логотипа');
+                return;
+            }
+            
+            if (!authToken) {
+                log('❌ Токен GitHub не настроен. Авторизуйтесь для загрузки логотипа.');
+                return;
+            }
+            
+            try {
+                // Генерируем имя файла на основе названия канала
+                const fileName = generateLogoFileName(channelName);
+                
+                log(`🎯 Загрузка логотипа для канала "${channelName}" как ${fileName}...`);
+                
+                await uploadImageToGitHub(file, `files/channel-logos/${fileName}`);
+                
+                log(`✅ Логотип для канала "${channelName}" загружен как ${fileName}`);
+                log('⏳ GitHub Action автоматически обновит версию логотипов...');
+                log('📱 Приложения получат обновление в течение 30 минут');
+                
+                // Очищаем поля
+                document.getElementById('single-logo-channel').value = '';
+                fileInput.value = '';
+                
+                // Обновляем информацию через несколько секунд
+                setTimeout(loadChannelLogosInfo, 3000);
+                
+            } catch (error) {
+                log(`❌ Ошибка загрузки логотипа: ${error.message}`);
+            }
+        }
+        
+        // Генерация имени файла логотипа на основе названия канала
+        function generateLogoFileName(channelName) {
+            return `${channelName.toLowerCase()
+                .replace(' ', '_')
+                .replace('россия', 'rossiya')
+                .replace('первый', 'perviy')
+                .replace('канал', 'kanal') 
+                .replace('нтв', 'ntv')
+                .replace('рен', 'ren')
+                .replace('тв', 'tv')
+                .replace('центр', 'centr')
+                .replace('звезда', 'tvzvezda')
+                .replace('домашний', 'domashniy')
+                .replace('культура', 'kultura')
+                .replace('пятница', 'friday')
+                .replace('карусель', 'karusel')
+                .replace('матч!', 'match_tv')
+                .replace('матч', 'match_tv')
+                .replace('мир', 'mir')
+                .replace('муз', 'muz')
+                .replace('рбк', 'rbc')
+                .replace('отр', 'otr')
+                .replace('спас', 'spas')
+                .replace('стс', 'sts')
+                .replace('тнт', 'tnt')
+                .replace('5 канал', '5-kanal')
+                .replace('тв-3', 'tv-3')
+                .replace('тв центр', 'tvc')
+                .replace('hd', '')
+                .replace('-', '_')
+                .replace('.', '_')
+                .replace('!', '')
+                .trim('_')}.png`;
         }
 
 

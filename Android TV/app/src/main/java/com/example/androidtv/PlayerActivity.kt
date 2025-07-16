@@ -145,7 +145,7 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun showChannelNameToast(name: String) {
         // Простой Toast без кастомного view (современный подход)
-        Toast.makeText(this, "📺 $name", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "$name", Toast.LENGTH_SHORT).show()
     }
 
     /**

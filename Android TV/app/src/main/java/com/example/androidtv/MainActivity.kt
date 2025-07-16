@@ -28,6 +28,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var adapter: ChannelAdapter
     private lateinit var remoteConfigManager: RemoteConfigManager
     private lateinit var autoUpdateManager: AutoUpdateManager
+    private lateinit var channelLogoManager: ChannelLogoManager
     private var channels = mutableListOf<Channel>()
     private var periodicConfigCheckJob: Job? = null
     
@@ -46,6 +47,7 @@ class MainActivity : AppCompatActivity() {
         // Инициализируем менеджеры
         remoteConfigManager = RemoteConfigManager(this)
         autoUpdateManager = AutoUpdateManager(this)
+        channelLogoManager = ChannelLogoManager(this)
 
         recyclerView = findViewById(R.id.recyclerView)
         
@@ -556,8 +558,9 @@ class MainActivity : AppCompatActivity() {
                     Log.d(TAG, "Каналы актуальны, версия: $remoteVersion")
                 }
                 
-                // Проверяем обновления заставки
+                // Проверяем обновления заставки и логотипов каналов
                 checkSplashUpdates(remoteConfig)
+                checkChannelLogosUpdates()
                 
             } else {
                 Log.w(TAG, "Не удалось получить конфигурацию при периодической проверке - возможно проблемы с сетью")
@@ -631,6 +634,38 @@ class MainActivity : AppCompatActivity() {
         invalidateOptionsMenu()
     }
     
+    /**
+     * Проверяет обновления заставки
+     */
+    private suspend fun checkSplashUpdates(remoteConfig: RemoteConfigManager.RemoteConfig) {
+        try {
+            // Здесь можно добавить логику проверки версии заставки
+            Log.d(TAG, "Проверка обновлений заставки...")
+            // SplashImageManager уже проверяет обновления автоматически
+        } catch (e: Exception) {
+            Log.e(TAG, "Ошибка проверки обновлений заставки: ${e.message}")
+        }
+    }
+    
+    /**
+     * Проверяет обновления логотипов каналов
+     */
+    private suspend fun checkChannelLogosUpdates() {
+        try {
+            Log.d(TAG, "Проверка обновлений логотипов каналов...")
+            val hasUpdates = channelLogoManager.checkAndUpdateChannelLogos()
+            if (hasUpdates) {
+                Log.d(TAG, "Логотипы каналов обновлены")
+                // Обновляем адаптер для перезагрузки логотипов
+                withContext(Dispatchers.Main) {
+                    adapter.notifyDataSetChanged()
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Ошибка проверки обновлений логотипов: ${e.message}")
+        }
+    }
+    
     private fun showToast(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
@@ -675,6 +710,20 @@ class ChannelAdapter(
         }
         
         private fun loadChannelIcon(channelName: String, imageView: ImageView) {
+            // Используем ChannelLogoManager для загрузки логотипов
+            val context = itemView.context
+            if (context is MainActivity) {
+                // Запускаем асинхронную загрузку логотипа
+                context.lifecycleScope.launch {
+                    context.channelLogoManager.loadChannelLogo(channelName, imageView)
+                }
+            } else {
+                // Fallback к старому методу если контекст не MainActivity
+                loadChannelIconFallback(channelName, imageView)
+            }
+        }
+        
+        private fun loadChannelIconFallback(channelName: String, imageView: ImageView) {
             // Создаем имя файла иконки на основе названия канала
             val iconName = "channel_${channelName.lowercase()
                 .replace(" ", "_")
