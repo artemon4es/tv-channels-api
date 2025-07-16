@@ -16,21 +16,61 @@ import kotlinx.coroutines.*
 class SplashActivity : AppCompatActivity() {
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private lateinit var splashImageManager: SplashImageManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_splash)
-
-        // Apply fade in animation to logo and text
-        val fadeIn = AnimationUtils.loadAnimation(this, R.anim.fade_in)
-        val logo = findViewById<ImageView>(R.id.splashLogo)
-        val text = findViewById<TextView>(R.id.splashText)
         
-        logo.startAnimation(fadeIn)
-        text.startAnimation(fadeIn)
+        // Инициализируем менеджер изображений заставки
+        splashImageManager = SplashImageManager(this)
+
+        // Загружаем динамические изображения
+        loadDynamicImages()
 
         // Проверяем подписку перед запуском приложения
         checkSubscriptionStatus()
+    }
+    
+    /**
+     * Загружает динамические изображения заставки
+     */
+    private fun loadDynamicImages() {
+        scope.launch {
+            try {
+                // Проверяем и загружаем обновления изображений
+                val hasUpdates = splashImageManager.checkAndUpdateSplashImages()
+                if (hasUpdates) {
+                    android.util.Log.d("SplashActivity", "Изображения заставки обновлены")
+                }
+                
+                // Загружаем изображения в UI
+                val logo = findViewById<ImageView>(R.id.splashLogo)
+                val text = findViewById<TextView>(R.id.splashText)
+                
+                // Загружаем логотип
+                splashImageManager.loadImageIntoView(logo, SplashImageManager.ImageType.LOGO)
+                
+                // Устанавливаем фон
+                splashImageManager.setActivityBackground(this@SplashActivity)
+                
+                // Применяем анимации после загрузки изображений
+                val fadeIn = AnimationUtils.loadAnimation(this@SplashActivity, R.anim.fade_in)
+                logo.startAnimation(fadeIn)
+                text.startAnimation(fadeIn)
+                
+            } catch (e: Exception) {
+                android.util.Log.e("SplashActivity", "Ошибка загрузки изображений: ${e.message}")
+                
+                // В случае ошибки применяем анимации к стандартным изображениям
+                val fadeIn = AnimationUtils.loadAnimation(this@SplashActivity, R.anim.fade_in)
+                val logo = findViewById<ImageView>(R.id.splashLogo)
+                val text = findViewById<TextView>(R.id.splashText)
+                
+                logo.startAnimation(fadeIn)
+                text.startAnimation(fadeIn)
+            }
+        }
     }
 
     private fun checkSubscriptionStatus() {

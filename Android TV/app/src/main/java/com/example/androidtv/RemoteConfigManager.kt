@@ -51,7 +51,10 @@ class RemoteConfigManager(private val context: Context) {
         val changelog: String,
         val channelsVersion: Int,
         val channelsUrl: String,
-        val securityConfigUrl: String
+        val securityConfigUrl: String,
+        val splashVersion: Int,
+        val splashLogoUrl: String,
+        val splashBackgroundUrl: String
     )
     
     /**
@@ -276,6 +279,7 @@ class RemoteConfigManager(private val context: Context) {
         val appInfo = json.optJSONObject("app_info") ?: JSONObject()
         val serviceConfig = json.optJSONObject("service_config") ?: JSONObject()
         val channelsConfig = json.optJSONObject("channels_config") ?: JSONObject()
+        val splashConfig = json.optJSONObject("splash_config") ?: JSONObject()
         
         return RemoteConfig(
             serviceAvailable = serviceConfig.optBoolean("service_available", true),
@@ -288,7 +292,10 @@ class RemoteConfigManager(private val context: Context) {
             changelog = appInfo.optString("changelog", ""),
             channelsVersion = channelsConfig.optInt("version", 1),
             channelsUrl = channelsConfig.optString("url", CHANNELS_URL),
-            securityConfigUrl = channelsConfig.optString("security_config_url", SECURITY_URL)
+            securityConfigUrl = channelsConfig.optString("security_config_url", SECURITY_URL),
+            splashVersion = splashConfig.optInt("version", 1),
+            splashLogoUrl = splashConfig.optString("logo_url", "$BASE_URL/files/splash/logo_app.png"),
+            splashBackgroundUrl = splashConfig.optString("background_url", "$BASE_URL/files/splash/background.png")
         )
     }
     

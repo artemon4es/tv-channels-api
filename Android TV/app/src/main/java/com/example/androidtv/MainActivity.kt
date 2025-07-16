@@ -40,6 +40,9 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         
+        // Предотвращаем выключение экрана во время использования приложения
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        
         // Инициализируем менеджеры
         remoteConfigManager = RemoteConfigManager(this)
         autoUpdateManager = AutoUpdateManager(this)
@@ -552,6 +555,9 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     Log.d(TAG, "Каналы актуальны, версия: $remoteVersion")
                 }
+                
+                // Проверяем обновления заставки
+                checkSplashUpdates(remoteConfig)
                 
             } else {
                 Log.w(TAG, "Не удалось получить конфигурацию при периодической проверке - возможно проблемы с сетью")

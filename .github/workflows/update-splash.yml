@@ -1,0 +1,47 @@
+name: Update Splash Images
+
+on:
+  push:
+    paths:
+      - 'files/splash/**'
+  workflow_dispatch:
+
+jobs:
+  update-splash-config:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Update splash config
+      run: |
+        # Получаем текущую дату и время
+        CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S.%3NZ")
+        
+        # Увеличиваем версию заставки
+        CURRENT_VERSION=$(jq -r '.splash_config.version' api/config.json)
+        NEW_VERSION=$((CURRENT_VERSION + 1))
+        
+        # Обновляем конфигурацию
+        jq --arg time "$CURRENT_TIME" --argjson version "$NEW_VERSION" '
+          .splash_config.version = $version |
+          .splash_config.last_updated = $time
+        ' api/config.json > api/config.json.tmp
+        
+        mv api/config.json.tmp api/config.json
+        
+        echo "Splash config updated to version $NEW_VERSION"
+        
+    - name: Commit changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add api/config.json
+        git diff --staged --quiet || git commit -m "🎨 Auto-update splash config to version $(jq -r '.splash_config.version' api/config.json)"
+        git push

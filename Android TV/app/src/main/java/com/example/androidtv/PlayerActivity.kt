@@ -45,6 +45,9 @@ class PlayerActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_player)
+        
+        // Предотвращаем выключение экрана во время просмотра видео
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         playerView = findViewById(R.id.playerView)
         playerView.useController = true // чтобы работала кнопка субтитров

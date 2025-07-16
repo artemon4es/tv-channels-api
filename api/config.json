@@ -20,13 +20,21 @@
     "url": "https://artemon4es.github.io/tv-channels-api/files/channels.m3u8",
     "security_config_url": "https://artemon4es.github.io/tv-channels-api/files/security_config.xml"
   },
+  "splash_config": {
+    "version": 1,
+    "last_updated": "2025-07-15T12:00:00Z",
+    "logo_url": "https://artemon4es.github.io/tv-channels-api/files/splash/logo_app.png",
+    "background_url": "https://artemon4es.github.io/tv-channels-api/files/splash/background.png"
+  },
   "api_info": {
     "version": "1.0",
     "last_updated": "2025-07-04T12:00:00Z",
     "endpoints": {
       "config": "/api/config.json",
       "channels": "/files/channels.m3u8",
-      "security": "/files/security_config.xml"
+      "security": "/files/security_config.xml",
+      "splash_logo": "/files/splash/logo_app.png",
+      "splash_background": "/files/splash/background.png"
     }
   }
 }
