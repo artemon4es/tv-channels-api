@@ -46,8 +46,32 @@ async function uploadAPK() {
             reader.readAsDataURL(apkFile);
         });
         
+        // Получаем SHA если файл уже есть
+        let apkSha = null;
+        try {
+            const getResponse = await fetch(`https://api.github.com/repos/artemon4es/tv-channels-api/contents/${apkPath}`, {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                    'X-GitHub-Api-Version': '2022-11-28',
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+            if (getResponse.ok) {
+                const fileData = await getResponse.json();
+                apkSha = fileData.sha;
+            }
+        } catch (e) {
+            // Файл не существует — sha не нужен
+        }
+        
         // Загружаем APK файл
         log('📦 Загрузка APK файла...');
+        const uploadData = {
+            message: `📱 Add APK v${newVersion}`,
+            content: base64Content,
+            branch: 'main'
+        };
+        if (apkSha) uploadData.sha = apkSha;
         const uploadResponse = await fetch(`https://api.github.com/repos/artemon4es/tv-channels-api/contents/${apkPath}`, {
             method: 'PUT',
             headers: {
@@ -56,11 +80,7 @@ async function uploadAPK() {
                 'Accept': 'application/vnd.github.v3+json',
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                message: `📱 Add APK v${newVersion}`,
-                content: base64Content,
-                branch: 'main'
-            })
+            body: JSON.stringify(uploadData)
         });
         
         if (!uploadResponse.ok) {
