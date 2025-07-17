@@ -1149,12 +1149,12 @@
                     })
                 });
                 
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
-                    throw new Error(`GitHub Actions ошибка: ${errorData.message}`);
+                if (!updateConfigResponse.ok) {
+                    const errorData = await updateConfigResponse.json().catch(() => ({ message: 'Unknown error' }));
+                    throw new Error(`Ошибка обновления конфигурации: ${errorData.message}`);
                 }
                 
-                log('✅ GitHub Action запущен для загрузки APK');
+                log('✅ Конфигурация успешно обновлена');
                 log('⏳ Ожидание выполнения... (может занять 1-2 минуты)');
                 
                 // Очищаем форму
