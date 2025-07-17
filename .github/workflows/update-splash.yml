@@ -9,6 +9,8 @@ on:
 jobs:
   update-splash-config:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     
     steps:
     - name: Checkout repository
