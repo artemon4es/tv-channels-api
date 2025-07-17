@@ -100,6 +100,19 @@ async function uploadAPK() {
         config.app_info.changelog = changelog;
         
         // Загружаем обновленную конфигурацию
+        // Используем безопасное кодирование в base64 для Unicode строк
+        function safeBase64Encode(str) {
+            // Преобразуем строку в UTF-8 массив байтов
+            const utf8Bytes = new TextEncoder().encode(str);
+            // Преобразуем массив байтов в строку base64
+            return btoa(String.fromCharCode.apply(null, utf8Bytes));
+        }
+        
+        const configJson = JSON.stringify(config, null, 2);
+        const base64Config = safeBase64Encode(configJson);
+        
+        log('📝 Конфигурация подготовлена для загрузки');
+        
         const updateConfigResponse = await fetch(`https://api.github.com/repos/artemon4es/tv-channels-api/contents/api/config.json`, {
             method: 'PUT',
             headers: {
@@ -110,7 +123,7 @@ async function uploadAPK() {
             },
             body: JSON.stringify({
                 message: `📱 Update config for APK v${newVersion}`,
-                content: btoa(JSON.stringify(config, null, 2)),
+                content: base64Config,
                 sha: configData.sha,
                 branch: 'main'
             })
