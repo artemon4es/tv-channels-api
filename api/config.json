@@ -1,11 +1,11 @@
 {
   "app_info": {
     "current_version": "1.0",
-    "latest_version": "1.1",
-    "version_code": 11,
-    "download_url": "https://artemon4es.github.io/tv-channels-api/files/updates/app-v1.1.apk",
-    "update_required": true,
-    "changelog": "🔧 Версия 1.1\n🔧 Исправлены ошибки\n🛡️ Улучшена стабильность работы"
+    "latest_version": "1.0",
+    "version_code": 1,
+    "download_url": "",
+    "update_required": false,
+    "changelog": ""
   },
   "service_config": {
     "service_available": true,
