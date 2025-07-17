@@ -1143,7 +1143,7 @@
                     },
                     body: JSON.stringify({
                         message: `📱 Update config for APK v${newVersion}`,
-                        content: btoa(JSON.stringify(config, null, 2)),
+                        content: btoa(unescape(encodeURIComponent(JSON.stringify(config, null, 2)))),
                         sha: configData.sha,
                         branch: 'main'
                     })

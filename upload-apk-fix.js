@@ -102,20 +102,8 @@ async function uploadAPK() {
         // Загружаем обновленную конфигурацию
         // Используем безопасное кодирование в base64 для Unicode строк
         function safeBase64Encode(str) {
-            // Преобразуем строку в UTF-8 массив байтов
-            const utf8Bytes = new TextEncoder().encode(str);
-            
-            // Обрабатываем массив байтов по частям, чтобы избежать ошибки переполнения стека
-            let binaryString = '';
-            const chunkSize = 1024;
-            
-            for (let i = 0; i < utf8Bytes.length; i += chunkSize) {
-                const chunk = utf8Bytes.slice(i, i + chunkSize);
-                binaryString += String.fromCharCode.apply(null, chunk);
-            }
-            
-            // Преобразуем бинарную строку в base64
-            return btoa(binaryString);
+            // Используем встроенный API для правильного кодирования Unicode в base64
+            return btoa(unescape(encodeURIComponent(str)));
         }
         
         const configJson = JSON.stringify(config, null, 2);
