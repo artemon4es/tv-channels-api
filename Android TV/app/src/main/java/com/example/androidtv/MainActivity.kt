@@ -28,7 +28,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var adapter: ChannelAdapter
     private lateinit var remoteConfigManager: RemoteConfigManager
     private lateinit var autoUpdateManager: AutoUpdateManager
-    private lateinit var channelLogoManager: ChannelLogoManager
+    internal lateinit var channelLogoManager: ChannelLogoManager
     private var channels = mutableListOf<Channel>()
     private var periodicConfigCheckJob: Job? = null
     
@@ -666,6 +666,16 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
+    /**
+     * Публичный метод для загрузки логотипа канала
+     * Используется из ChannelAdapter
+     */
+    fun loadChannelLogoIntoView(channelName: String, imageView: ImageView) {
+        lifecycleScope.launch {
+            channelLogoManager.loadChannelLogo(channelName, imageView)
+        }
+    }
+    
     private fun showToast(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
@@ -710,13 +720,11 @@ class ChannelAdapter(
         }
         
         private fun loadChannelIcon(channelName: String, imageView: ImageView) {
-            // Используем ChannelLogoManager для загрузки логотипов
+            // Используем публичный метод MainActivity для загрузки логотипов
             val context = itemView.context
             if (context is MainActivity) {
-                // Запускаем асинхронную загрузку логотипа
-                context.lifecycleScope.launch {
-                    context.channelLogoManager.loadChannelLogo(channelName, imageView)
-                }
+                // Используем публичный метод вместо прямого доступа к channelLogoManager
+                context.loadChannelLogoIntoView(channelName, imageView)
             } else {
                 // Fallback к старому методу если контекст не MainActivity
                 loadChannelIconFallback(channelName, imageView)
