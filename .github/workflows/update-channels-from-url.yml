@@ -94,16 +94,12 @@ jobs:
         
         // Поиск канала по точному совпадению строки #EXTINF
         function findChannelByExtinfLine(extinfLine, sourceChannels) {
-            console.log(`🔍 Ищем точное совпадение для: ${extinfLine}`);
-            
+            // Убираем детальные логи для каждого поиска
             for (const source of sourceChannels) {
                 if (source.extinfLine === extinfLine) {
-                    console.log(`✅ ТОЧНОЕ совпадение найдено!`);
                     return source;
                 }
             }
-            
-            console.log(`❌ Точное совпадение НЕ найдено`);
             return null;
         }
         
@@ -117,33 +113,25 @@ jobs:
         
         console.log(`📊 Текущие каналы: ${currentChannels.length}, источник: ${sourceChannels.length}`);
         
-        console.log(`\n📋 Каналы в источнике (#EXTINF строки):`);
-        sourceChannels.forEach((ch, idx) => {
-            console.log(`   ${idx + 1}. ${ch.extinfLine}`);
-        });
+        console.log(`\n📋 Загружено ${sourceChannels.length} каналов из источника`);
         
         // Обновляем ссылки по точному совпадению строк #EXTINF
         let updated = 0;
         const updatedChannels = [];
         
         for (const current of currentChannels) {
-            console.log(`\n🎯 Обрабатываем канал:`);
-            console.log(`   ${current.extinfLine}`);
-            
             const foundSource = findChannelByExtinfLine(current.extinfLine, sourceChannels);
             
             if (foundSource) {
                 if (current.url !== foundSource.url) {
-                    console.log(`🔄 Обновляем URL:`);
-                    console.log(`   СТАРЫЙ: ${current.url.substring(0, 80)}...`);
-                    console.log(`   НОВЫЙ:  ${foundSource.url.substring(0, 80)}...`);
+                    // Выводим информацию только об обновленных каналах
+                    console.log(`🔄 Обновляем: ${current.extinfLine.substring(0, 50)}...`);
                     current.url = foundSource.url;
                     updated++;
-                } else {
-                    console.log(`✅ URL уже актуален`);
                 }
+                // Убираем логи для каналов без изменений
             } else {
-                console.log(`❌ Канал не найден в источнике`);
+                // Убираем логи для каналов не найденных в источнике
             }
             
             updatedChannels.push(current);

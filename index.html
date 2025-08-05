@@ -272,7 +272,7 @@
                             <button class="btn" onclick="toggleChannelDebug()" id="debug-btn" style="background: #6c757d; color: white; margin-left: 5px;">🔧 Диагностика</button>
                         </div>
                         <div style="margin-top: 10px; font-size: 12px; color: #666;">
-                            ⏰ Автопроверка: 2 раза в сутки (08:00 и 20:00 UTC)
+                            ⏰ Автопроверка: каждые 30 минут
                         </div>
                         <div id="auto-update-info" style="margin-top: 10px; padding: 8px; background: #e9ecef; border-radius: 4px; font-size: 12px; display: none;">
                             <strong>ℹ️ Информация:</strong><br>
@@ -304,15 +304,45 @@
                         📊 Последнее обновление: не выполнялось
                     </div>
                     
-                    <!-- Существующие функции -->
+                    <!-- Realtime редактор каналов -->
                     <div style="border-top: 1px solid #dee2e6; padding-top: 15px;">
-                        <h4>📁 Загрузка файла</h4>
+                        <h4>✏️ Realtime редактор каналов</h4>
+                        <div style="background: #e7f3ff; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #007bff;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <div style="font-size: 14px; color: #0056b3;">
+                                    <strong>Статус:</strong> <span id="realtime-edit-status">Не загружено</span>
+                                </div>
+                                <div>
+                                    <button class="btn" onclick="loadForRealtimeEditing()" style="background: #17a2b8; color: white; font-size: 12px;">📝 Загрузить для редактирования</button>
+                                    <button class="btn btn-success" onclick="saveRealtimeChanges()" id="realtime-save-btn" disabled style="font-size: 12px;">💾 Сохранить изменения</button>
+                                    <button class="btn" onclick="discardRealtimeChanges()" style="background: #6c757d; color: white; font-size: 12px;">↶ Отменить</button>
+                                </div>
+                            </div>
+                            <div id="realtime-edit-info" style="font-size: 12px; color: #0056b3; display: none;">
+                                💡 Изменения автоматически сохраняются в браузере. Нажмите "Сохранить изменения" для применения.
+                            </div>
+                        </div>
+                        
+                        <textarea id="realtime-channels-editor" 
+                                  placeholder="Нажмите 'Загрузить для редактирования' чтобы начать..." 
+                                  style="height: 400px; font-family: 'Courier New', monospace; font-size: 12px;"
+                                  disabled></textarea>
+                                  
+                        <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                            📊 Символов: <span id="editor-char-count">0</span> | 
+                            Строк: <span id="editor-line-count">0</span> | 
+                            Каналов: <span id="editor-channel-count">0</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Обычная загрузка файла -->
+                    <div style="border-top: 1px solid #dee2e6; padding-top: 15px; margin-top: 20px;">
+                        <h4>📁 Загрузка файла (альтернативный способ)</h4>
                         <input type="file" id="channels-file" accept=".m3u8,.m3u">
                         <button class="btn" onclick="uploadChannels()">Загрузить каналы</button>
-                        <br><br>
-                        <h4>✏️ Редактирование</h4>
-                        <textarea id="channels-content" style="height: 120px;"></textarea>
-                        <button class="btn btn-success" onclick="saveChannels()">Сохранить изменения</button>
+                        <div style="margin-top: 5px; font-size: 12px; color: #666;">
+                            Загрузка файла перезапишет содержимое realtime редактора
+                        </div>
                     </div>
                 </div>
 
@@ -416,11 +446,30 @@
                     </div>
                     
                     <div style="margin-bottom: 20px;">
+                        <h4>📋 Каналы без логотипов</h4>
+                        <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #ffc107;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <p style="margin: 0; font-size: 14px; color: #856404;">
+                                    <strong>Каналы без логотипов:</strong> <span id="channels-without-logos-count">Загрузка...</span>
+                                </p>
+                                <button class="btn" onclick="loadChannelsWithoutLogos()" style="background: #ffc107; color: #856404; font-size: 12px;">🔍 Обновить список</button>
+                            </div>
+                            <div id="channels-without-logos-list" style="margin-top: 10px; display: none;">
+                                <div style="max-height: 150px; overflow-y: auto; background: white; padding: 10px; border-radius: 4px; border: 1px solid #d1ecf1;">
+                                    <div id="channels-without-logos-content">Нажмите "Обновить список" для загрузки</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
                         <h4>🎨 Быстрая загрузка отдельного логотипа</h4>
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; align-items: end;">
                             <div>
                                 <label>Название канала:</label>
-                                <input type="text" id="single-logo-channel" placeholder="НТВ" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <select id="single-logo-channel" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="">Выберите канал...</option>
+                                </select>
                             </div>
                             <div>
                                 <label>Файл логотипа:</label>
@@ -2299,14 +2348,14 @@
             }
         }
 
-        // Автоматическая проверка каждые 12 часов
+        // Автоматическая проверка каждые 30 минут
         setInterval(() => {
             const now = new Date();
             const hour = now.getUTCHours();
             const minute = now.getUTCMinutes();
             
-            // Проверяем в 08:00 и 20:00 UTC (±1 минута)
-            if ((hour === 8 || hour === 20) && minute <= 1) {
+            // Проверяем каждые 30 минут (в 00 и 30 минут)
+            if (minute === 0 || minute === 30) {
                 const isEnabled = localStorage.getItem('auto-update-enabled') === 'true';
                 if (isEnabled) {
                     log('⏰ Автоматическая проверка обновлений...');
@@ -3038,6 +3087,312 @@
                 .replace('.', '_')
                 .replace('!', '')
                 .trim('_')}.png`;
+        }
+
+        // Загрузка списка каналов без логотипов
+        async function loadChannelsWithoutLogos() {
+            try {
+                log('🔍 Загрузка списка каналов без логотипов...');
+                
+                // Получаем текущие каналы
+                const channels = await getCurrentChannelsFromGitHub();
+                const channelList = parseM3UFile(channels);
+                
+                // Список доступных логотипов
+                const availableLogos = [
+                    'rossiya-1.png', 'ntv.png', 'rossiya-24.png', 'kultura.png',
+                    'tnt.png', 'sts.png', 'tv-3.png', 'tvzvezda.png', 'ren_tv.png',
+                    'tvc.png', '5-kanal.png', 'domashniy.png', 'friday.png', 'mir.png',
+                    'otr.png', 'rbc.png', 'muz.png', 'karusel.png', 'spas.png', 'ortl.png',
+                    'match_tv.png'
+                ];
+                
+                // Находим каналы без логотипов
+                const channelsWithoutLogos = channelList.filter(channel => {
+                    const logoFileName = generateLogoFileName(channel.name);
+                    return !availableLogos.includes(logoFileName);
+                });
+                
+                // Обновляем интерфейс
+                updateChannelsWithoutLogosDisplay(channelsWithoutLogos);
+                populateChannelSelect(channelsWithoutLogos);
+                
+                log(`✅ Найдено ${channelsWithoutLogos.length} каналов без логотипов`);
+                
+            } catch (error) {
+                log(`❌ Ошибка загрузки каналов без логотипов: ${error.message}`);
+                document.getElementById('channels-without-logos-count').textContent = 'Ошибка';
+            }
+        }
+        
+        // Обновление отображения каналов без логотипов
+        function updateChannelsWithoutLogosDisplay(channelsWithoutLogos) {
+            const countElement = document.getElementById('channels-without-logos-count');
+            const listElement = document.getElementById('channels-without-logos-list');
+            const contentElement = document.getElementById('channels-without-logos-content');
+            
+            countElement.textContent = channelsWithoutLogos.length;
+            
+            if (channelsWithoutLogos.length === 0) {
+                contentElement.innerHTML = '<div style="text-align: center; color: #28a745;">🎉 У всех каналов есть логотипы!</div>';
+                listElement.style.display = 'block';
+            } else {
+                let html = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px;">';
+                
+                channelsWithoutLogos.forEach(channel => {
+                    html += `
+                        <div style="padding: 8px; background: #fff; border: 1px solid #dee2e6; border-radius: 4px;">
+                            <div style="font-weight: bold; font-size: 12px; color: #495057;">${channel.name}</div>
+                            <div style="font-size: 10px; color: #6c757d;">Группа: ${channel.group || 'Без группы'}</div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                contentElement.innerHTML = html;
+                listElement.style.display = 'block';
+            }
+        }
+        
+        // Заполнение выпадающего списка каналами без логотипов
+        function populateChannelSelect(channelsWithoutLogos) {
+            const selectElement = document.getElementById('single-logo-channel');
+            
+            // Очищаем существующие опции (кроме первой)
+            selectElement.innerHTML = '<option value="">Выберите канал...</option>';
+            
+            // Добавляем каналы без логотипов
+            channelsWithoutLogos.forEach(channel => {
+                const option = document.createElement('option');
+                option.value = channel.name;
+                option.textContent = `${channel.name} (${channel.group || 'Без группы'})`;
+                selectElement.appendChild(option);
+            });
+            
+            if (channelsWithoutLogos.length === 0) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = '🎉 У всех каналов есть логотипы!';
+                option.disabled = true;
+                selectElement.appendChild(option);
+            }
+        }
+        
+        // Парсинг M3U файла для получения списка каналов
+        function parseM3UFile(content) {
+            const lines = content.split('\n');
+            const channels = [];
+            let currentChannel = null;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                
+                if (line.startsWith('#EXTINF:')) {
+                    // Извлекаем название канала из строки #EXTINF
+                    const nameMatch = line.match(/,(.+)$/);
+                    const groupMatch = line.match(/group-title="([^"]+)"/);
+                    
+                    if (nameMatch) {
+                        currentChannel = {
+                            name: nameMatch[1].trim(),
+                            group: groupMatch ? groupMatch[1] : null,
+                            extinf: line
+                        };
+                    }
+                } else if (line && !line.startsWith('#') && currentChannel) {
+                    currentChannel.url = line;
+                    channels.push(currentChannel);
+                    currentChannel = null;
+                }
+            }
+            
+            return channels;
+        }
+
+        // Переменные для realtime редактирования
+        let originalRealtimeContent = '';
+        let hasRealtimeChanges = false;
+
+        // Загрузка для realtime редактирования
+        async function loadForRealtimeEditing() {
+            try {
+                log('📝 Загрузка данных для realtime редактирования...');
+                
+                const content = await getCurrentChannelsFromGitHub();
+                originalRealtimeContent = content;
+                
+                const editor = document.getElementById('realtime-channels-editor');
+                const statusElement = document.getElementById('realtime-edit-status');
+                const infoElement = document.getElementById('realtime-edit-info');
+                
+                // Включаем редактор и загружаем данные
+                editor.disabled = false;
+                editor.value = content;
+                
+                // Обновляем статус
+                statusElement.innerHTML = '✅ Данные загружены. Можно редактировать.';
+                statusElement.style.color = '#28a745';
+                infoElement.style.display = 'block';
+                
+                // Настраиваем отслеживание изменений
+                setupRealtimeTracking();
+                
+                // Обновляем статистику
+                updateEditorStats();
+                
+                log('✅ Realtime редактор готов к работе');
+                
+            } catch (error) {
+                log(`❌ Ошибка загрузки для редактирования: ${error.message}`);
+                document.getElementById('realtime-edit-status').innerHTML = `❌ Ошибка: ${error.message}`;
+                document.getElementById('realtime-edit-status').style.color = '#dc3545';
+            }
+        }
+        
+        // Настройка отслеживания изменений в realtime
+        function setupRealtimeTracking() {
+            const editor = document.getElementById('realtime-channels-editor');
+            const statusElement = document.getElementById('realtime-edit-status');
+            const saveBtn = document.getElementById('realtime-save-btn');
+            
+            editor.addEventListener('input', () => {
+                const currentContent = editor.value;
+                hasRealtimeChanges = currentContent !== originalRealtimeContent;
+                
+                // Автосохранение в localStorage
+                localStorage.setItem('realtime-editor-content', currentContent);
+                localStorage.setItem('realtime-editor-timestamp', Date.now());
+                
+                // Обновляем статус
+                if (hasRealtimeChanges) {
+                    statusElement.innerHTML = '⚠️ Есть несохраненные изменения';
+                    statusElement.style.color = '#ffc107';
+                    saveBtn.disabled = false;
+                } else {
+                    statusElement.innerHTML = '✅ Все изменения сохранены';
+                    statusElement.style.color = '#28a745';
+                    saveBtn.disabled = true;
+                }
+                
+                // Обновляем статистику
+                updateEditorStats();
+            });
+            
+            // Проверяем, есть ли сохраненные данные в localStorage
+            const savedContent = localStorage.getItem('realtime-editor-content');
+            const savedTimestamp = localStorage.getItem('realtime-editor-timestamp');
+            
+            if (savedContent && savedTimestamp) {
+                const timeDiff = Date.now() - parseInt(savedTimestamp);
+                // Если данные сохранены менее 24 часов назад
+                if (timeDiff < 24 * 60 * 60 * 1000) {
+                    const savedTime = new Date(parseInt(savedTimestamp)).toLocaleString();
+                    const useSaved = confirm(`Найдены несохраненные изменения от ${savedTime}. Восстановить их?`);
+                    
+                    if (useSaved) {
+                        editor.value = savedContent;
+                        hasRealtimeChanges = savedContent !== originalRealtimeContent;
+                        
+                        if (hasRealtimeChanges) {
+                            statusElement.innerHTML = '🔄 Восстановлены несохраненные изменения';
+                            statusElement.style.color = '#ffc107';
+                            saveBtn.disabled = false;
+                        }
+                        
+                        updateEditorStats();
+                        log('🔄 Восстановлены данные из локального хранилища');
+                    }
+                }
+            }
+        }
+        
+        // Сохранение realtime изменений
+        async function saveRealtimeChanges() {
+            const editor = document.getElementById('realtime-channels-editor');
+            const content = editor.value;
+            
+            if (!content.includes('#EXTM3U')) {
+                alert('❌ Неверный формат данных. Файл должен содержать #EXTM3U');
+                return;
+            }
+            
+            if (!hasRealtimeChanges) {
+                log('ℹ️ Нет изменений для сохранения');
+                return;
+            }
+            
+            try {
+                log('💾 Сохранение изменений через GitHub Actions...');
+                
+                // Сохраняем через существующую функцию
+                document.getElementById('channels-content').value = content;
+                await saveChannels();
+                
+                // Обновляем состояние
+                originalRealtimeContent = content;
+                hasRealtimeChanges = false;
+                
+                document.getElementById('realtime-edit-status').innerHTML = '✅ Изменения сохранены';
+                document.getElementById('realtime-edit-status').style.color = '#28a745';
+                document.getElementById('realtime-save-btn').disabled = true;
+                
+                // Очищаем localStorage
+                localStorage.removeItem('realtime-editor-content');
+                localStorage.removeItem('realtime-editor-timestamp');
+                
+                log('✅ Realtime изменения успешно сохранены');
+                
+            } catch (error) {
+                log(`❌ Ошибка сохранения realtime изменений: ${error.message}`);
+                alert(`❌ Ошибка сохранения: ${error.message}`);
+            }
+        }
+        
+        // Отмена realtime изменений
+        function discardRealtimeChanges() {
+            if (hasRealtimeChanges && !confirm('Отменить все несохраненные изменения? Это действие нельзя отменить.')) {
+                return;
+            }
+            
+            const editor = document.getElementById('realtime-channels-editor');
+            const statusElement = document.getElementById('realtime-edit-status');
+            const saveBtn = document.getElementById('realtime-save-btn');
+            
+            // Восстанавливаем оригинальное содержимое
+            editor.value = originalRealtimeContent;
+            hasRealtimeChanges = false;
+            
+            // Обновляем интерфейс
+            statusElement.innerHTML = '↶ Изменения отменены';
+            statusElement.style.color = '#6c757d';
+            saveBtn.disabled = true;
+            
+            // Очищаем localStorage
+            localStorage.removeItem('realtime-editor-content');
+            localStorage.removeItem('realtime-editor-timestamp');
+            
+            // Обновляем статистику
+            updateEditorStats();
+            
+            log('↶ Realtime изменения отменены');
+        }
+        
+        // Обновление статистики редактора
+        function updateEditorStats() {
+            const editor = document.getElementById('realtime-channels-editor');
+            const content = editor.value;
+            
+            // Подсчет символов
+            const charCount = content.length;
+            document.getElementById('editor-char-count').textContent = charCount.toLocaleString();
+            
+            // Подсчет строк
+            const lineCount = content.split('\n').length;
+            document.getElementById('editor-line-count').textContent = lineCount.toLocaleString();
+            
+            // Подсчет каналов (строки начинающиеся с #EXTINF)
+            const channelCount = (content.match(/#EXTINF:/g) || []).length;
+            document.getElementById('editor-channel-count').textContent = channelCount.toLocaleString();
         }
 
 

@@ -83,8 +83,18 @@ class ChannelLogoManager(private val context: Context) {
     suspend fun loadChannelLogo(channelName: String, imageView: ImageView) {
         withContext(Dispatchers.IO) {
             try {
-                // Создаем имя файла логотипа на основе названия канала
-                val logoFileName = generateLogoFileName(channelName)
+                // Проверяем, есть ли логотип для этого канала
+                val logoFileName = getLogoFileName(channelName)
+                
+                if (logoFileName == null) {
+                    // Логотипа нет - скрываем ImageView
+                    withContext(Dispatchers.Main) {
+                        imageView.visibility = android.view.View.GONE
+                        Log.d(TAG, "Логотип для $channelName не найден - скрываем ImageView")
+                    }
+                    return@withContext
+                }
+                
                 val cachedFile = File(getCacheDir(), logoFileName)
                 
                 val bitmap = if (cachedFile.exists()) {
@@ -100,21 +110,22 @@ class ChannelLogoManager(private val context: Context) {
                 // Устанавливаем изображение в UI потоке
                 withContext(Dispatchers.Main) {
                     if (bitmap != null) {
+                        imageView.visibility = android.view.View.VISIBLE
                         imageView.setImageBitmap(bitmap)
                         Log.d(TAG, "Логотип $logoFileName загружен в ImageView")
                     } else {
-                        // Используем заглушку
-                        imageView.setImageResource(R.drawable.channel_placeholder)
-                        Log.d(TAG, "Использована заглушка для $channelName")
+                        // Если даже в ресурсах нет - скрываем
+                        imageView.visibility = android.view.View.GONE
+                        Log.d(TAG, "Логотип для $channelName не найден в ресурсах - скрываем ImageView")
                     }
                 }
                 
             } catch (e: Exception) {
                 Log.e(TAG, "Ошибка загрузки логотипа для $channelName: ${e.message}")
                 
-                // В случае ошибки используем заглушку
+                // В случае ошибки скрываем ImageView
                 withContext(Dispatchers.Main) {
-                    imageView.setImageResource(R.drawable.channel_placeholder)
+                    imageView.visibility = android.view.View.GONE
                 }
             }
         }
@@ -155,6 +166,29 @@ class ChannelLogoManager(private val context: Context) {
             .replace(".", "_")
             .replace("!", "")
             .trim('_')}.png"
+    }
+    
+    /**
+     * Проверяет наличие логотипа для канала и возвращает имя файла или null
+     */
+    private fun getLogoFileName(channelName: String): String? {
+        // Список всех доступных логотипов
+        val availableLogos = setOf(
+            "rossiya-1.png", "ntv.png", "rossiya-24.png", "kultura.png",
+            "tnt.png", "sts.png", "tv-3.png", "tvzvezda.png", "ren_tv.png",
+            "tvc.png", "5-kanal.png", "domashniy.png", "friday.png", "mir.png",
+            "otr.png", "rbc.png", "muz.png", "karusel.png", "spas.png", "ortl.png",
+            "match_tv.png"
+        )
+        
+        val logoFileName = generateLogoFileName(channelName)
+        
+        // Проверяем есть ли логотип для этого канала
+        return if (availableLogos.contains(logoFileName)) {
+            logoFileName
+        } else {
+            null // Не показывать пустой плейсхолдер
+        }
     }
     
     /**
@@ -218,7 +252,8 @@ class ChannelLogoManager(private val context: Context) {
                 "rossiya-1.png", "ntv.png", "rossiya-24.png", "kultura.png",
                 "tnt.png", "sts.png", "tv-3.png", "tvzvezda.png", "ren_tv.png",
                 "tvc.png", "5-kanal.png", "domashniy.png", "friday.png", "mir.png",
-                "otr.png", "rbc.png", "muz.png", "karusel.png", "spas.png", "ortl.png"
+                "otr.png", "rbc.png", "muz.png", "karusel.png", "spas.png", "ortl.png",
+                "match_tv.png"
             )
         } catch (e: Exception) {
             Log.e(TAG, "Ошибка получения списка логотипов: ${e.message}")
