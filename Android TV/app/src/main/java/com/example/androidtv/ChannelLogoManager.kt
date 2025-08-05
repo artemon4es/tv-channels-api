@@ -172,23 +172,47 @@ class ChannelLogoManager(private val context: Context) {
      * Проверяет наличие логотипа для канала и возвращает имя файла или null
      */
     private fun getLogoFileName(channelName: String): String? {
-        // Список всех доступных логотипов
-        val availableLogos = setOf(
-            "rossiya-1.png", "ntv.png", "rossiya-24.png", "kultura.png",
-            "tnt.png", "sts.png", "tv-3.png", "tvzvezda.png", "ren_tv.png",
-            "tvc.png", "5-kanal.png", "domashniy.png", "friday.png", "mir.png",
-            "otr.png", "rbc.png", "muz.png", "karusel.png", "spas.png", "ortl.png",
-            "match_tv.png"
+        val name = channelName.lowercase().trim()
+        
+        // Точные соответствия названий каналов и файлов логотипов
+        val exactMatches = mapOf(
+            "первый канал hd" to "ortl.png",
+            "россия 1 hd" to "rossiya-1.png",
+            "россия-24" to "rossiya-24.png",
+            "россия культура" to "kultura.png",
+            "нтв hd" to "ntv.png",
+            "тнт hd" to "tnt.png",
+            "стс hd" to "sts.png",
+            "тв-3 hd" to "tv-3.png",
+            "звезда hd" to "tvzvezda.png",
+            "рен тв hd" to "ren_tv.png",
+            "тв центр hd" to "tvc.png",
+            "5 канал россия" to "5-kanal.png",
+            "домашний hd" to "domashniy.png",
+            "пятница hd" to "friday.png",
+            "мир hd" to "mir.png",
+            "отр hd" to "otr.png",
+            "рбк" to "rbc.png",
+            "спас" to "spas.png",
+            "карусель" to "karusel.png",
+            "муз тв" to "muz.png",
+            "матч тв" to "match_tv.png",
+            "матч! тв" to "match_tv.png"
         )
         
-        val logoFileName = generateLogoFileName(channelName)
+        // Проверяем точное соответствие
+        exactMatches[name]?.let { return it }
         
-        // Проверяем есть ли логотип для этого канала
-        return if (availableLogos.contains(logoFileName)) {
-            logoFileName
-        } else {
-            null // Не показывать пустой плейсхолдер
+        // Если точного соответствия нет, пытаемся найти по частичному совпадению
+        for ((channelPattern, logoFile) in exactMatches) {
+            if (name.contains(channelPattern.replace(" hd", "")) || 
+                channelPattern.replace(" hd", "").contains(name)) {
+                return logoFile
+            }
         }
+        
+        // Если ничего не найдено, возвращаем null (логотип не будет показан)
+        return null
     }
     
     /**
@@ -219,7 +243,6 @@ class ChannelLogoManager(private val context: Context) {
                 .replace("спас", "spas")
                 .replace("стс", "sts")
                 .replace("тнт", "tnt")
-                .replace("рtr_планета_европа", "rtr_planeta_evropa")
                 .replace("hd", "")
                 .replace("-", "_")
                 .replace(".", "_")

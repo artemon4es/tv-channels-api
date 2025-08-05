@@ -3056,37 +3056,48 @@
         
         // Генерация имени файла логотипа на основе названия канала
         function generateLogoFileName(channelName) {
-            return `${channelName.toLowerCase()
-                .replace(' ', '_')
-                .replace('россия', 'rossiya')
-                .replace('первый', 'perviy')
-                .replace('канал', 'kanal') 
-                .replace('нтв', 'ntv')
-                .replace('рен', 'ren')
-                .replace('тв', 'tv')
-                .replace('центр', 'centr')
-                .replace('звезда', 'tvzvezda')
-                .replace('домашний', 'domashniy')
-                .replace('культура', 'kultura')
-                .replace('пятница', 'friday')
-                .replace('карусель', 'karusel')
-                .replace('матч!', 'match_tv')
-                .replace('матч', 'match_tv')
-                .replace('мир', 'mir')
-                .replace('муз', 'muz')
-                .replace('рбк', 'rbc')
-                .replace('отр', 'otr')
-                .replace('спас', 'spas')
-                .replace('стс', 'sts')
-                .replace('тнт', 'tnt')
-                .replace('5 канал', '5-kanal')
-                .replace('тв-3', 'tv-3')
-                .replace('тв центр', 'tvc')
-                .replace('hd', '')
-                .replace('-', '_')
-                .replace('.', '_')
-                .replace('!', '')
-                .trim('_')}.png`;
+            const name = channelName.toLowerCase().trim();
+            
+            // Точные соответствия названий каналов и файлов логотипов
+            const exactMatches = {
+                'первый канал hd': 'ortl.png',
+                'россия 1 hd': 'rossiya-1.png',
+                'россия-24': 'rossiya-24.png',
+                'россия культура': 'kultura.png',
+                'нтв hd': 'ntv.png',
+                'тнт hd': 'tnt.png',
+                'стс hd': 'sts.png',
+                'тв-3 hd': 'tv-3.png',
+                'звезда hd': 'tvzvezda.png',
+                'рен тв hd': 'ren_tv.png',
+                'тв центр hd': 'tvc.png',
+                '5 канал россия': '5-kanal.png',
+                'домашний hd': 'domashniy.png',
+                'пятница hd': 'friday.png',
+                'мир hd': 'mir.png',
+                'отр hd': 'otr.png',
+                'рбк': 'rbc.png',
+                'спас': 'spas.png',
+                'карусель': 'karusel.png',
+                'муз тв': 'muz.png',
+                'матч тв': 'match_tv.png',
+                'матч! тв': 'match_tv.png'
+            };
+            
+            // Проверяем точное соответствие
+            if (exactMatches[name]) {
+                return exactMatches[name];
+            }
+            
+            // Если точного соответствия нет, пытаемся найти по частичному совпадению
+            for (const [channelPattern, logoFile] of Object.entries(exactMatches)) {
+                if (name.includes(channelPattern.replace(' hd', '')) || channelPattern.replace(' hd', '').includes(name)) {
+                    return logoFile;
+                }
+            }
+            
+            // Если ничего не найдено, возвращаем null
+            return null;
         }
 
         // Загрузка списка каналов без логотипов
@@ -3098,19 +3109,10 @@
                 const channels = await getCurrentChannelsFromGitHub();
                 const channelList = parseM3UFile(channels);
                 
-                // Список доступных логотипов
-                const availableLogos = [
-                    'rossiya-1.png', 'ntv.png', 'rossiya-24.png', 'kultura.png',
-                    'tnt.png', 'sts.png', 'tv-3.png', 'tvzvezda.png', 'ren_tv.png',
-                    'tvc.png', '5-kanal.png', 'domashniy.png', 'friday.png', 'mir.png',
-                    'otr.png', 'rbc.png', 'muz.png', 'karusel.png', 'spas.png', 'ortl.png',
-                    'match_tv.png'
-                ];
-                
                 // Находим каналы без логотипов
                 const channelsWithoutLogos = channelList.filter(channel => {
                     const logoFileName = generateLogoFileName(channel.name);
-                    return !availableLogos.includes(logoFileName);
+                    return logoFileName === null; // Если generateLogoFileName вернул null, значит логотипа нет
                 });
                 
                 // Обновляем интерфейс
