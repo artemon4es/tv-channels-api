@@ -446,17 +446,19 @@
                     </div>
                     
                     <div style="margin-bottom: 20px;">
-                        <h4>📋 Каналы без логотипов</h4>
-                        <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #ffc107;">
+                        <h4>📋 Анализ логотипов каналов</h4>
+                        <div style="background: #e7f3ff; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #007bff;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <p style="margin: 0; font-size: 14px; color: #856404;">
-                                    <strong>Каналы без логотипов:</strong> <span id="channels-without-logos-count">Загрузка...</span>
-                                </p>
-                                <button class="btn" onclick="loadChannelsWithoutLogos()" style="background: #ffc107; color: #856404; font-size: 12px;">🔍 Обновить список</button>
+                                <div style="font-size: 14px; color: #0056b3;">
+                                    <strong>Всего каналов:</strong> <span id="total-channels-count">-</span> |
+                                    <strong>Без логотипов:</strong> <span id="channels-without-logos-count">-</span> |
+                                    <strong>С логотипами:</strong> <span id="channels-with-logos-count">-</span>
+                                </div>
+                                <button class="btn" onclick="loadAllChannelsAnalysis()" style="background: #007bff; color: white; font-size: 12px;">🔍 Анализировать</button>
                             </div>
-                            <div id="channels-without-logos-list" style="margin-top: 10px; display: none;">
-                                <div style="max-height: 150px; overflow-y: auto; background: white; padding: 10px; border-radius: 4px; border: 1px solid #d1ecf1;">
-                                    <div id="channels-without-logos-content">Нажмите "Обновить список" для загрузки</div>
+                            <div id="channels-analysis-list" style="margin-top: 10px; display: none;">
+                                <div style="max-height: 200px; overflow-y: auto; background: white; padding: 10px; border-radius: 4px; border: 1px solid #d1ecf1;">
+                                    <div id="channels-analysis-content">Нажмите "Анализировать" для просмотра</div>
                                 </div>
                             </div>
                         </div>
@@ -470,6 +472,7 @@
                                 <select id="single-logo-channel" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                                     <option value="">Выберите канал...</option>
                                 </select>
+                                <div style="font-size: 10px; color: #666; margin-top: 2px;">Показываются все каналы для замены/добавления логотипов</div>
                             </div>
                             <div>
                                 <label>Файл логотипа:</label>
@@ -2920,7 +2923,8 @@
                     'rossiya-1.png', 'ntv.png', 'rossiya-24.png', 'kultura.png',
                     'tnt.png', 'sts.png', 'tv-3.png', 'tvzvezda.png', 'ren_tv.png',
                     'tvc.png', '5-kanal.png', 'domashniy.png', 'friday.png', 'mir.png',
-                    'otr.png', 'rbc.png', 'muz.png', 'karusel.png', 'spas.png', 'ortl.png'
+                    'otr.png', 'rbc.png', 'muz.png', 'karusel.png', 'spas.png', 'ortl.png',
+                    'match_tv.png' // Добавлен недостающий логотип
                 ];
                 
                 const timestamp = Date.now();
@@ -3079,9 +3083,8 @@
                 'рбк': 'rbc.png',
                 'спас': 'spas.png',
                 'карусель': 'karusel.png',
-                'муз тв': 'muz.png',
-                'матч тв': 'match_tv.png',
-                'матч! тв': 'match_tv.png'
+                'муз тв hd': 'muz.png',
+                'матч! hd': 'match_tv.png' // Точное название из файла каналов
             };
             
             // Проверяем точное соответствие
@@ -3100,84 +3103,115 @@
             return null;
         }
 
-        // Загрузка списка каналов без логотипов
-        async function loadChannelsWithoutLogos() {
+        // Анализ всех каналов и их логотипов
+        async function loadAllChannelsAnalysis() {
             try {
-                log('🔍 Загрузка списка каналов без логотипов...');
+                log('🔍 Анализ всех каналов и логотипов...');
                 
                 // Получаем текущие каналы
                 const channels = await getCurrentChannelsFromGitHub();
                 const channelList = parseM3UFile(channels);
                 
-                // Находим каналы без логотипов
-                const channelsWithoutLogos = channelList.filter(channel => {
+                // Анализируем каналы
+                const channelsWithoutLogos = [];
+                const channelsWithLogos = [];
+                
+                channelList.forEach(channel => {
                     const logoFileName = generateLogoFileName(channel.name);
-                    return logoFileName === null; // Если generateLogoFileName вернул null, значит логотипа нет
+                    if (logoFileName === null) {
+                        channelsWithoutLogos.push(channel);
+                    } else {
+                        channelsWithLogos.push({...channel, logoFile: logoFileName});
+                    }
                 });
                 
-                // Обновляем интерфейс
-                updateChannelsWithoutLogosDisplay(channelsWithoutLogos);
-                populateChannelSelect(channelsWithoutLogos);
+                // Обновляем статистику
+                document.getElementById('total-channels-count').textContent = channelList.length;
+                document.getElementById('channels-without-logos-count').textContent = channelsWithoutLogos.length;
+                document.getElementById('channels-with-logos-count').textContent = channelsWithLogos.length;
                 
-                log(`✅ Найдено ${channelsWithoutLogos.length} каналов без логотипов`);
+                // Обновляем интерфейс
+                updateChannelsAnalysisDisplay(channelsWithoutLogos, channelsWithLogos);
+                populateChannelSelectWithAll(channelList); // Показываем ВСЕ каналы для выбора
+                
+                log(`✅ Анализ завершен: ${channelList.length} каналов (${channelsWithLogos.length} с логотипами, ${channelsWithoutLogos.length} без)`);
                 
             } catch (error) {
-                log(`❌ Ошибка загрузки каналов без логотипов: ${error.message}`);
+                log(`❌ Ошибка анализа каналов: ${error.message}`);
                 document.getElementById('channels-without-logos-count').textContent = 'Ошибка';
             }
         }
         
-        // Обновление отображения каналов без логотипов
-        function updateChannelsWithoutLogosDisplay(channelsWithoutLogos) {
-            const countElement = document.getElementById('channels-without-logos-count');
-            const listElement = document.getElementById('channels-without-logos-list');
-            const contentElement = document.getElementById('channels-without-logos-content');
+        // Обновление отображения анализа каналов
+        function updateChannelsAnalysisDisplay(channelsWithoutLogos, channelsWithLogos) {
+            const listElement = document.getElementById('channels-analysis-list');
+            const contentElement = document.getElementById('channels-analysis-content');
             
-            countElement.textContent = channelsWithoutLogos.length;
+            let html = '<div style="margin-bottom: 15px;">';
             
-            if (channelsWithoutLogos.length === 0) {
-                contentElement.innerHTML = '<div style="text-align: center; color: #28a745;">🎉 У всех каналов есть логотипы!</div>';
-                listElement.style.display = 'block';
-            } else {
-                let html = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px;">';
+            // Показываем каналы без логотипов
+            if (channelsWithoutLogos.length > 0) {
+                html += '<h5 style="color: #dc3545; margin-bottom: 10px;">❌ Каналы без логотипов:</h5>';
+                html += '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-bottom: 15px;">';
                 
                 channelsWithoutLogos.forEach(channel => {
                     html += `
-                        <div style="padding: 8px; background: #fff; border: 1px solid #dee2e6; border-radius: 4px;">
-                            <div style="font-weight: bold; font-size: 12px; color: #495057;">${channel.name}</div>
-                            <div style="font-size: 10px; color: #6c757d;">Группа: ${channel.group || 'Без группы'}</div>
+                        <div style="padding: 8px; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px;">
+                            <div style="font-weight: bold; font-size: 12px; color: #721c24;">${channel.name}</div>
+                            <div style="font-size: 10px; color: #721c24;">Группа: ${channel.group || 'Без группы'}</div>
                         </div>
                     `;
                 });
-                
                 html += '</div>';
-                contentElement.innerHTML = html;
-                listElement.style.display = 'block';
             }
+            
+            // Показываем каналы с логотипами
+            if (channelsWithLogos.length > 0) {
+                html += '<h5 style="color: #28a745; margin-bottom: 10px;">✅ Каналы с логотипами:</h5>';
+                html += '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px;">';
+                
+                channelsWithLogos.forEach(channel => {
+                    html += `
+                        <div style="padding: 8px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px;">
+                            <div style="font-weight: bold; font-size: 12px; color: #155724;">${channel.name}</div>
+                            <div style="font-size: 10px; color: #155724;">Логотип: ${channel.logoFile}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            contentElement.innerHTML = html;
+            listElement.style.display = 'block';
         }
         
-        // Заполнение выпадающего списка каналами без логотипов
-        function populateChannelSelect(channelsWithoutLogos) {
+        // Заполнение выпадающего списка ВСЕМИ каналами
+        function populateChannelSelectWithAll(allChannels) {
             const selectElement = document.getElementById('single-logo-channel');
             
             // Очищаем существующие опции (кроме первой)
             selectElement.innerHTML = '<option value="">Выберите канал...</option>';
             
-            // Добавляем каналы без логотипов
-            channelsWithoutLogos.forEach(channel => {
+            // Добавляем ВСЕ каналы с указанием статуса логотипа
+            allChannels.forEach(channel => {
+                const logoFileName = generateLogoFileName(channel.name);
+                const hasLogo = logoFileName !== null;
+                const statusIcon = hasLogo ? '✅' : '❌';
+                const statusText = hasLogo ? `(лого: ${logoFileName})` : '(без логотипа)';
+                
                 const option = document.createElement('option');
                 option.value = channel.name;
-                option.textContent = `${channel.name} (${channel.group || 'Без группы'})`;
+                option.textContent = `${statusIcon} ${channel.name} ${statusText}`;
                 selectElement.appendChild(option);
             });
             
-            if (channelsWithoutLogos.length === 0) {
-                const option = document.createElement('option');
-                option.value = '';
-                option.textContent = '🎉 У всех каналов есть логотипы!';
-                option.disabled = true;
-                selectElement.appendChild(option);
-            }
+            // Добавляем информационную опцию
+            const infoOption = document.createElement('option');
+            infoOption.value = '';
+            infoOption.textContent = `📊 Всего каналов: ${allChannels.length}`;
+            infoOption.disabled = true;
+            selectElement.appendChild(infoOption);
         }
         
         // Парсинг M3U файла для получения списка каналов

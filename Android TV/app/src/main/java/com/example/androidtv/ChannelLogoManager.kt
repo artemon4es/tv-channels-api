@@ -195,9 +195,8 @@ class ChannelLogoManager(private val context: Context) {
             "рбк" to "rbc.png",
             "спас" to "spas.png",
             "карусель" to "karusel.png",
-            "муз тв" to "muz.png",
-            "матч тв" to "match_tv.png",
-            "матч! тв" to "match_tv.png"
+            "муз тв hd" to "muz.png",
+            "матч! hd" to "match_tv.png" // Точное название из файла каналов
         )
         
         // Проверяем точное соответствие
