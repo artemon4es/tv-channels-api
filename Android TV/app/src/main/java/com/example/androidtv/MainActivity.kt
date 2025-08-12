@@ -29,6 +29,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var remoteConfigManager: RemoteConfigManager
     private lateinit var autoUpdateManager: AutoUpdateManager
     internal lateinit var channelLogoManager: ChannelLogoManager
+    private lateinit var deviceManager: DeviceManager
     private var channels = mutableListOf<Channel>()
     private var periodicConfigCheckJob: Job? = null
     
@@ -48,6 +49,7 @@ class MainActivity : AppCompatActivity() {
         remoteConfigManager = RemoteConfigManager(this)
         autoUpdateManager = AutoUpdateManager(this)
         channelLogoManager = ChannelLogoManager(this)
+        deviceManager = DeviceManager(this)
 
         recyclerView = findViewById(R.id.recyclerView)
         
@@ -166,6 +168,24 @@ class MainActivity : AppCompatActivity() {
                     try {
                         remoteConfigManager.downloadSecurityConfig()
                     } catch (_: Exception) { }
+                }
+                
+                // Инициализируем систему учета устройств
+                lifecycleScope.launch(Dispatchers.IO) {
+                    try {
+                        // Регистрируем устройство если еще не зарегистрировано
+                        if (!deviceManager.isRegistered()) {
+                            deviceManager.registerDevice()
+                        }
+                        
+                        // Запускаем мониторинг устройства
+                        deviceManager.startDeviceMonitoring(lifecycleScope)
+                        
+                        Log.d(TAG, "Device ID: ${deviceManager.getCurrentDeviceId()}")
+                        Log.d(TAG, "Service enabled: ${deviceManager.isServiceEnabled()}")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Ошибка инициализации DeviceManager: ${e.message}")
+                    }
                 }
             } else {
                 // Если удаленная конфигурация недоступна, загружаем локальные данные
@@ -293,6 +313,12 @@ class MainActivity : AppCompatActivity() {
      * Обновляет каналы из удаленного источника
      */
     private suspend fun updateChannelsFromRemote() {
+        // Проверяем, разрешена ли работа сервиса для этого устройства
+        if (::deviceManager.isInitialized && !deviceManager.isServiceEnabled()) {
+            Log.d(TAG, "Сервис отключен для этого устройства, пропускаем обновление каналов")
+            return
+        }
+        
         try {
             Log.d(TAG, "Проверка обновлений каналов из удаленного источника...")
             

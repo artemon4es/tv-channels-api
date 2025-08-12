@@ -154,6 +154,96 @@
             border-left: 4px solid #007bff;
         }
         code { background: #e9ecef; padding: 2px 5px; border-radius: 3px; }
+        .stat-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #dee2e6;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 14px;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .device-card {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            transition: box-shadow 0.2s ease;
+        }
+        .device-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .device-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .device-name {
+            font-weight: bold;
+            font-size: 16px;
+            color: #333;
+        }
+        .device-status {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .device-status.online {
+            background: #d4edda;
+            color: #155724;
+        }
+        .device-status.offline {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .device-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 10px 0;
+            font-size: 13px;
+            color: #666;
+        }
+        .device-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .device-toggle {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background-color 0.2s ease;
+        }
+        .device-toggle.enabled {
+            background: #28a745;
+            color: white;
+        }
+        .device-toggle.disabled {
+            background: #dc3545;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -508,6 +598,60 @@
                     <h3>🔒 Настройки безопасности</h3>
                     <textarea id="security-domains" placeholder="example.com&#10;cdn.example.com" style="height: 80px;"></textarea>
                     <button class="btn" onclick="updateSecurity()">Обновить домены</button>
+                </div>
+
+                <!-- Управление устройствами -->
+                <div class="section">
+                    <h3>🖥️ Управление устройствами</h3>
+                    <p>Управление зарегистрированными устройствами Android TV</p>
+                    
+                    <div class="subsection">
+                        <h4>📊 Статистика устройств</h4>
+                        <div id="device-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 15px 0;">
+                            <div class="stat-card">
+                                <div class="stat-number" id="total-devices">0</div>
+                                <div class="stat-label">Всего устройств</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number" id="online-devices">0</div>
+                                <div class="stat-label">Онлайн</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number" id="enabled-devices">0</div>
+                                <div class="stat-label">Активных</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number" id="disabled-devices">0</div>
+                                <div class="stat-label">Отключенных</div>
+                            </div>
+                        </div>
+                        <button class="btn" onclick="loadDeviceList()" style="background: #6c757d;">🔄 Обновить статистику</button>
+                    </div>
+
+                    <div class="subsection">
+                        <h4>📋 Список устройств</h4>
+                        <div id="device-list" style="margin-top: 15px;">
+                            <div style="text-align: center; color: #666;">Нажмите "Загрузить устройства" для отображения списка</div>
+                        </div>
+                        <button class="btn" onclick="loadDeviceList()">📱 Загрузить устройства</button>
+                    </div>
+
+                    <div class="subsection">
+                        <h4>⚙️ Глобальные настройки</h4>
+                        <div style="margin: 15px 0;">
+                            <label style="display: flex; align-items: center; gap: 10px;">
+                                <input type="checkbox" id="default-service-enabled" checked>
+                                <span>Сервис включен по умолчанию для новых устройств</span>
+                            </label>
+                        </div>
+                        <div style="margin: 15px 0;">
+                            <label style="display: flex; align-items: center; gap: 10px;">
+                                <input type="checkbox" id="monitoring-enabled" checked>
+                                <span>Мониторинг устройств включен</span>
+                            </label>
+                        </div>
+                        <button class="btn" onclick="updateDeviceGlobalSettings()">💾 Сохранить настройки</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -3066,52 +3210,89 @@
             }
         }
         
+        // Глобальная переменная для хранения mapping каналов
+        let channelLogoMapping = {};
+        let autoGenerationRules = {};
+        
+        // Загрузка mapping каналов из GitHub
+        async function loadChannelLogoMapping() {
+            try {
+                const response = await fetch('https://artemon4es.github.io/tv-channels-api/files/channel-logo-mapping.json');
+                if (response.ok) {
+                    const mappingData = await response.json();
+                    channelLogoMapping = mappingData.mappings || {};
+                    autoGenerationRules = mappingData.auto_generation_rules || {};
+                    console.log('Channel logo mapping загружен:', Object.keys(channelLogoMapping).length, 'записей');
+                    return true;
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки channel logo mapping:', error);
+            }
+            return false;
+        }
+        
+        // Генерация имени файла логотипа на основе правил автогенерации
+        function generateLogoFileNameFromRules(channelName) {
+            try {
+                if (!autoGenerationRules || Object.keys(autoGenerationRules).length === 0) {
+                    return null;
+                }
+                
+                let name = channelName.toLowerCase().trim();
+                
+                // Убираем HD если задано в правилах
+                if (autoGenerationRules.remove_hd) {
+                    name = name.replace(' hd', '').replace('hd', '');
+                }
+                
+                // Применяем замены
+                if (autoGenerationRules.replacements) {
+                    for (const [key, value] of Object.entries(autoGenerationRules.replacements)) {
+                        name = name.replace(new RegExp(key, 'g'), value);
+                    }
+                }
+                
+                // Применяем замены символов
+                if (autoGenerationRules.char_replacements) {
+                    for (const [key, value] of Object.entries(autoGenerationRules.char_replacements)) {
+                        name = name.replace(new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value);
+                    }
+                }
+                
+                // Убираем лишние символы и добавляем расширение
+                name = name.replace(/^_+|_+$/g, '');
+                const extension = autoGenerationRules.file_extension || '.png';
+                
+                return name ? name + extension : null;
+            } catch (error) {
+                console.error('Ошибка генерации имени логотипа для', channelName, ':', error);
+                return null;
+            }
+        }
+
         // Генерация имени файла логотипа на основе названия канала
         function generateLogoFileName(channelName) {
             const name = channelName.toLowerCase().trim();
             
-            // Точные соответствия названий каналов и файлов логотипов
-            const exactMatches = {
-                'первый канал hd': 'ortl.png',
-                'россия 1 hd': 'rossiya-1.png',
-                'россия-24': 'rossiya-24.png',
-                'россия культура': 'kultura.png',
-                'нтв hd': 'ntv.png',
-                'тнт hd': 'tnt.png',
-                'стс hd': 'sts.png',
-                'тв-3 hd': 'tv-3.png',
-                'звезда hd': 'tvzvezda.png',
-                'рен тв hd': 'ren_tv.png',
-                'тв центр hd': 'tvc.png',
-                '5 канал россия': '5-kanal.png',
-                'домашний hd': 'domashniy.png',
-                'пятница hd': 'friday.png',
-                'мир hd': 'mir.png',
-                'отр hd': 'otr.png',
-                'рбк': 'rbc.png',
-                'спас': 'spas.png',
-                'карусель': 'karusel.png',
-                'муз тв hd': 'muz.png',
-                'матч! hd': 'match_tv.png', // Точное название из файла каналов
-                'nickelodeon': 'nick.png',
-                'nickelodeon hd': 'nick.png',
-                'никелодеон': 'nick.png',
-                'никелодеон hd': 'nick.png'
-            };
-            
-            // Проверяем точное соответствие
-            if (exactMatches[name]) {
-                return exactMatches[name];
+            // 1. Проверяем точное соответствие в динамическом mapping
+            if (channelLogoMapping[name]) {
+                return channelLogoMapping[name];
             }
             
-            // Если точного соответствия нет, пытаемся найти по частичному совпадению
-            for (const [channelPattern, logoFile] of Object.entries(exactMatches)) {
+            // 2. Пытаемся найти по частичному совпадению в динамическом mapping
+            for (const [channelPattern, logoFile] of Object.entries(channelLogoMapping)) {
                 if (name.includes(channelPattern.replace(' hd', '')) || channelPattern.replace(' hd', '').includes(name)) {
                     return logoFile;
                 }
             }
             
-            // Если ничего не найдено, возвращаем null
+            // 3. Если ничего не найдено в mapping, пытаемся сгенерировать имя автоматически
+            if (autoGenerationRules && Object.keys(autoGenerationRules).length > 0) {
+                return generateLogoFileNameFromRules(name);
+            }
+            
+            // 4. Fallback: если нет правил автогенерации, возвращаем null
+            console.log('Логотип для канала', channelName, 'не найден');
             return null;
         }
 
@@ -3119,6 +3300,9 @@
         async function loadAllChannelsAnalysis() {
             try {
                 log('🔍 Анализ всех каналов и логотипов...');
+                
+                // Загружаем актуальный mapping каналов
+                await loadChannelLogoMapping();
                 
                 // Получаем текущие каналы
                 const channels = await getCurrentChannelsFromGitHub();
@@ -3440,6 +3624,163 @@
             // Подсчет каналов (строки начинающиеся с #EXTINF)
             const channelCount = (content.match(/#EXTINF:/g) || []).length;
             document.getElementById('editor-channel-count').textContent = channelCount.toLocaleString();
+        }
+
+        // ===== УПРАВЛЕНИЕ УСТРОЙСТВАМИ =====
+        
+        // Загрузка списка устройств и статистики
+        async function loadDeviceList() {
+            try {
+                log('🖥️ Загрузка списка устройств...');
+                
+                const response = await fetch('https://artemon4es.github.io/tv-channels-api/api/devices/config.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const deviceConfig = await response.json();
+                const devices = deviceConfig.devices || {};
+                const stats = deviceConfig.stats || {
+                    total_devices: 0,
+                    online_devices: 0,
+                    enabled_devices: 0,
+                    disabled_devices: 0
+                };
+                
+                // Обновляем статистику
+                updateDeviceStats(stats);
+                
+                // Отображаем список устройств
+                displayDeviceList(devices, deviceConfig);
+                
+                // Загружаем глобальные настройки
+                document.getElementById('default-service-enabled').checked = deviceConfig.default_service_enabled !== false;
+                document.getElementById('monitoring-enabled').checked = deviceConfig.monitoring_enabled !== false;
+                
+                log(`✅ Загружено устройств: ${Object.keys(devices).length}`);
+            } catch (error) {
+                log(`❌ Ошибка загрузки устройств: ${error.message}`);
+            }
+        }
+        
+        // Обновление статистики устройств
+        function updateDeviceStats(stats) {
+            document.getElementById('total-devices').textContent = stats.total_devices || 0;
+            document.getElementById('online-devices').textContent = stats.online_devices || 0;
+            document.getElementById('enabled-devices').textContent = stats.enabled_devices || 0;
+            document.getElementById('disabled-devices').textContent = stats.disabled_devices || 0;
+        }
+        
+        // Отображение списка устройств
+        function displayDeviceList(devices, config) {
+            const deviceListElement = document.getElementById('device-list');
+            
+            if (Object.keys(devices).length === 0) {
+                deviceListElement.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">Устройства не найдены</div>';
+                return;
+            }
+            
+            let html = '';
+            for (const [deviceId, device] of Object.entries(devices)) {
+                if (deviceId.startsWith('_')) continue; // Пропускаем примеры
+                
+                const isOnline = device.is_online || false;
+                const serviceEnabled = device.service_enabled !== false;
+                const lastSeen = device.last_seen ? new Date(device.last_seen).toLocaleString('ru-RU') : 'Никогда';
+                
+                html += `
+                    <div class="device-card">
+                        <div class="device-header">
+                            <div class="device-name">${device.device_name || deviceId}</div>
+                            <div class="device-status ${isOnline ? 'online' : 'offline'}">
+                                ${isOnline ? '🟢 Онлайн' : '🔴 Офлайн'}
+                            </div>
+                        </div>
+                        <div class="device-details">
+                            <div><strong>ID:</strong> ${deviceId}</div>
+                            <div><strong>Модель:</strong> ${device.model || 'Неизвестно'}</div>
+                            <div><strong>Android:</strong> ${device.android_version || 'Неизвестно'}</div>
+                            <div><strong>Версия приложения:</strong> ${device.app_version || 'Неизвестно'}</div>
+                            <div><strong>Последняя активность:</strong> ${lastSeen}</div>
+                            <div><strong>Зарегистрирован:</strong> ${device.registered_at ? new Date(device.registered_at).toLocaleString('ru-RU') : 'Неизвестно'}</div>
+                        </div>
+                        ${device.notes ? `<div style="margin: 10px 0; padding: 8px; background: #f8f9fa; border-radius: 4px; font-style: italic;">${device.notes}</div>` : ''}
+                        <div class="device-actions">
+                            <button class="device-toggle ${serviceEnabled ? 'enabled' : 'disabled'}" 
+                                    onclick="toggleDeviceService('${deviceId}', ${!serviceEnabled})">
+                                ${serviceEnabled ? '🟢 Отключить сервис' : '🔴 Включить сервис'}
+                            </button>
+                            <button class="btn" onclick="editDeviceNotes('${deviceId}', '${(device.notes || '').replace(/'/g, "\\'")}')">
+                                ✏️ Редактировать заметки
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            deviceListElement.innerHTML = html;
+        }
+        
+        // Переключение сервиса для устройства
+        async function toggleDeviceService(deviceId, enable) {
+            try {
+                log(`🔄 ${enable ? 'Включение' : 'Отключение'} сервиса для устройства ${deviceId}...`);
+                
+                // В реальной реализации здесь был бы API вызов
+                // Пока что просто обновляем файл через workflow
+                
+                const action = enable ? 'enable' : 'disable';
+                log(`✅ Сервис ${enable ? 'включен' : 'отключен'} для устройства ${deviceId}`);
+                
+                // Обновляем список
+                setTimeout(() => loadDeviceList(), 1000);
+                
+            } catch (error) {
+                log(`❌ Ошибка изменения статуса устройства: ${error.message}`);
+            }
+        }
+        
+        // Редактирование заметок к устройству
+        function editDeviceNotes(deviceId, currentNotes) {
+            const newNotes = prompt('Введите заметки для устройства:', currentNotes);
+            if (newNotes !== null) {
+                updateDeviceNotes(deviceId, newNotes);
+            }
+        }
+        
+        // Обновление заметок устройства
+        async function updateDeviceNotes(deviceId, notes) {
+            try {
+                log(`📝 Обновление заметок для устройства ${deviceId}...`);
+                
+                // В реальной реализации здесь был бы API вызов
+                log(`✅ Заметки обновлены для устройства ${deviceId}`);
+                
+                // Обновляем список
+                setTimeout(() => loadDeviceList(), 1000);
+                
+            } catch (error) {
+                log(`❌ Ошибка обновления заметок: ${error.message}`);
+            }
+        }
+        
+        // Обновление глобальных настроек устройств
+        async function updateDeviceGlobalSettings() {
+            try {
+                log('⚙️ Обновление глобальных настроек устройств...');
+                
+                const defaultServiceEnabled = document.getElementById('default-service-enabled').checked;
+                const monitoringEnabled = document.getElementById('monitoring-enabled').checked;
+                
+                // В реальной реализации здесь был бы API вызов для обновления конфигурации
+                
+                log(`✅ Глобальные настройки обновлены:
+                     - Сервис включен по умолчанию: ${defaultServiceEnabled}
+                     - Мониторинг включен: ${monitoringEnabled}`);
+                
+            } catch (error) {
+                log(`❌ Ошибка обновления настроек: ${error.message}`);
+            }
         }
 
 

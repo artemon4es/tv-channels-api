@@ -10,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.security.MessageDigest
@@ -22,10 +23,13 @@ class ChannelLogoManager(private val context: Context) {
     companion object {
         private const val TAG = "ChannelLogoManager"
         private const val BASE_URL = "https://artemon4es.github.io/tv-channels-api/files/channel-logos"
+        private const val MAPPING_URL = "https://artemon4es.github.io/tv-channels-api/files/channel-logo-mapping.json"
         
         private const val PREFS_NAME = "channel_logos"
         private const val KEY_LOGOS_VERSION = "logos_version"
+        private const val KEY_MAPPING_VERSION = "mapping_version"
         private const val KEY_LAST_CHECK = "last_check"
+        private const val KEY_MAPPING_CACHE = "mapping_cache"
         
         private const val CACHE_DIR = "channel_logos_cache"
         private const val CHECK_INTERVAL = 30 * 60 * 1000L // 30 минут
@@ -34,12 +38,99 @@ class ChannelLogoManager(private val context: Context) {
     private val client = OkHttpClient()
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     
+    // Динамический mapping каналов к логотипам (загружается из GitHub)
+    @Volatile
+    private var channelMapping: Map<String, String> = emptyMap()
+    private var autoGenerationRules: JSONObject? = null
+    
+    init {
+        // Загружаем кэшированный mapping при инициализации
+        loadCachedMapping()
+    }
+    
+    /**
+     * Загружает mapping каналов к логотипам из GitHub
+     */
+    private suspend fun loadChannelMapping(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "Загрузка channel-logo-mapping.json из GitHub...")
+            val request = Request.Builder()
+                .url(MAPPING_URL)
+                .build()
+            
+            val response = client.newCall(request).execute()
+            if (response.isSuccessful) {
+                val mappingJson = response.body?.string()
+                if (mappingJson != null) {
+                    val json = JSONObject(mappingJson)
+                    val mappingsObj = json.getJSONObject("mappings")
+                    
+                    // Конвертируем JSONObject в Map
+                    val mapping = mutableMapOf<String, String>()
+                    mappingsObj.keys().forEach { key ->
+                        mapping[key] = mappingsObj.getString(key)
+                    }
+                    
+                    channelMapping = mapping
+                    autoGenerationRules = json.optJSONObject("auto_generation_rules")
+                    
+                    // Кэшируем mapping локально
+                    prefs.edit()
+                        .putString(KEY_MAPPING_CACHE, mappingJson)
+                        .putInt(KEY_MAPPING_VERSION, json.optInt("version", 1))
+                        .apply()
+                    
+                    Log.d(TAG, "Channel mapping загружен: ${mapping.size} записей")
+                    return@withContext true
+                }
+            }
+            response.close()
+            false
+        } catch (e: Exception) {
+            Log.e(TAG, "Ошибка загрузки channel mapping: ${e.message}")
+            // Пытаемся загрузить из кэша
+            loadCachedMapping()
+            false
+        }
+    }
+    
+    /**
+     * Загружает mapping из локального кэша
+     */
+    private fun loadCachedMapping(): Boolean {
+        return try {
+            val cachedMapping = prefs.getString(KEY_MAPPING_CACHE, null)
+            if (cachedMapping != null) {
+                val json = JSONObject(cachedMapping)
+                val mappingsObj = json.getJSONObject("mappings")
+                
+                val mapping = mutableMapOf<String, String>()
+                mappingsObj.keys().forEach { key ->
+                    mapping[key] = mappingsObj.getString(key)
+                }
+                
+                channelMapping = mapping
+                autoGenerationRules = json.optJSONObject("auto_generation_rules")
+                Log.d(TAG, "Channel mapping загружен из кэша: ${mapping.size} записей")
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Ошибка загрузки mapping из кэша: ${e.message}")
+            false
+        }
+    }
+
     /**
      * Проверяет и загружает обновления логотипов каналов
      */
     suspend fun checkAndUpdateChannelLogos(): Boolean {
         return withContext(Dispatchers.IO) {
             try {
+                // Загружаем актуальный mapping каналов из GitHub
+                loadChannelMapping()
+                
                 // Проверяем, нужно ли проверять обновления
                 if (!shouldCheckForUpdates()) {
                     Log.d(TAG, "Проверка обновлений логотипов не требуется")
@@ -170,53 +261,74 @@ class ChannelLogoManager(private val context: Context) {
     
     /**
      * Проверяет наличие логотипа для канала и возвращает имя файла или null
+     * Использует динамический mapping, загруженный из GitHub
      */
     private fun getLogoFileName(channelName: String): String? {
         val name = channelName.lowercase().trim()
         
-        // Точные соответствия названий каналов и файлов логотипов
-        val exactMatches = mapOf(
-            "первый канал hd" to "ortl.png",
-            "россия 1 hd" to "rossiya-1.png",
-            "россия-24" to "rossiya-24.png",
-            "россия культура" to "kultura.png",
-            "нтв hd" to "ntv.png",
-            "тнт hd" to "tnt.png",
-            "стс hd" to "sts.png",
-            "тв-3 hd" to "tv-3.png",
-            "звезда hd" to "tvzvezda.png",
-            "рен тв hd" to "ren_tv.png",
-            "тв центр hd" to "tvc.png",
-            "5 канал россия" to "5-kanal.png",
-            "домашний hd" to "domashniy.png",
-            "пятница hd" to "friday.png",
-            "мир hd" to "mir.png",
-            "отр hd" to "otr.png",
-            "рбк" to "rbc.png",
-            "спас" to "spas.png",
-            "карусель" to "karusel.png",
-            "муз тв hd" to "muz.png",
-            "матч! hd" to "match_tv.png",
-            // Новый канал взамен СПАС
-            "nickelodeon" to "nick.png",
-            "nickelodeon hd" to "nick.png",
-            "никелодеон" to "nick.png",
-            "никелодеон hd" to "nick.png"
-        )
+        // 1. Проверяем точное соответствие в динамическом mapping
+        channelMapping[name]?.let { return it }
         
-        // Проверяем точное соответствие
-        exactMatches[name]?.let { return it }
-        
-        // Если точного соответствия нет, пытаемся найти по частичному совпадению
-        for ((channelPattern, logoFile) in exactMatches) {
+        // 2. Пытаемся найти по частичному совпадению в динамическом mapping
+        for ((channelPattern, logoFile) in channelMapping) {
             if (name.contains(channelPattern.replace(" hd", "")) || 
                 channelPattern.replace(" hd", "").contains(name)) {
                 return logoFile
             }
         }
         
-        // Если ничего не найдено, возвращаем null (логотип не будет показан)
+        // 3. Если ничего не найдено в mapping, пытаемся сгенерировать имя автоматически
+        if (autoGenerationRules != null) {
+            return generateLogoFileNameFromRules(name)
+        }
+        
+        // 4. Fallback: если нет правил автогенерации, возвращаем null
+        Log.d(TAG, "Логотип для канала '$channelName' не найден")
         return null
+    }
+    
+    /**
+     * Генерирует имя файла логотипа на основе правил автогенерации из JSON
+     */
+    private fun generateLogoFileNameFromRules(channelName: String): String? {
+        return try {
+            val rules = autoGenerationRules ?: return null
+            var name = channelName.lowercase().trim()
+            
+            // Убираем HD если задано в правилах
+            if (rules.optBoolean("remove_hd", false)) {
+                name = name.replace(" hd", "").replace("hd", "")
+            }
+            
+            // Применяем замены
+            val replacements = rules.optJSONObject("replacements")
+            if (replacements != null) {
+                replacements.keys().forEach { key ->
+                    name = name.replace(key, replacements.getString(key))
+                }
+            }
+            
+            // Применяем замены символов
+            val charReplacements = rules.optJSONObject("char_replacements")
+            if (charReplacements != null) {
+                charReplacements.keys().forEach { key ->
+                    name = name.replace(key, charReplacements.getString(key))
+                }
+            }
+            
+            // Убираем лишние символы и добавляем расширение
+            name = name.trim('_')
+            val extension = rules.optString("file_extension", ".png")
+            
+            if (name.isNotEmpty()) {
+                "$name$extension"
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Ошибка генерации имени логотипа для '$channelName': ${e.message}")
+            null
+        }
     }
     
     /**
