@@ -16,6 +16,11 @@ import java.io.IOException
 
 class RemoteConfigManager(private val context: Context) {
     
+    // Runtime whitelist доменов для HTTP/HTTPS потоков, управляется из GitHub security_config.xml
+    object RuntimeSecurity {
+        @Volatile
+        var allowedHosts: Set<String> = emptySet()
+    }
     private val client = OkHttpClient()
     private val prefs: SharedPreferences = context.getSharedPreferences("remote_config", Context.MODE_PRIVATE)
     
@@ -221,7 +226,9 @@ class RemoteConfigManager(private val context: Context) {
                 val securityConfig = response.body?.string()
                 if (securityConfig != null) {
                     saveSecurityConfigToCache(securityConfig)
-                    Log.d(TAG, "Конфигурация безопасности загружена и сохранена")
+                    // Парсим домены и обновляем runtime whitelist
+                    RuntimeSecurity.allowedHosts = parseSecurityWhitelist(securityConfig)
+                    Log.d(TAG, "Конфигурация безопасности загружена. Разрешено хостов: ${RuntimeSecurity.allowedHosts.size}")
                 }
                 securityConfig
             } else {
@@ -233,6 +240,16 @@ class RemoteConfigManager(private val context: Context) {
             Log.e(TAG, "Ошибка загрузки конфигурации безопасности: ${e.message}")
             null
         }
+    }
+
+    private fun parseSecurityWhitelist(xml: String): Set<String> {
+        // Очень простой парсер: собираем все значения внутри <domain>...</domain>, игнорируя порты
+        val regex = Regex("<domain[^>]*>([^<]+)</domain>", RegexOption.IGNORE_CASE)
+        return regex.findAll(xml)
+            .map { it.groupValues[1].trim() }
+            .map { it.substringBefore(":") } // без порта
+            .filter { it.isNotEmpty() }
+            .toSet()
     }
     
     /**

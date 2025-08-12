@@ -160,6 +160,13 @@ class MainActivity : AppCompatActivity() {
                 // ВСЕГДА проверяем и обновляем каналы при запуске
                 Log.d(TAG, "Проверка обновлений каналов при запуске...")
                 updateChannelsFromRemote()
+
+                // Загружаем runtime whitelist доменов из удаленного security_config.xml
+                lifecycleScope.launch(Dispatchers.IO) {
+                    try {
+                        remoteConfigManager.downloadSecurityConfig()
+                    } catch (_: Exception) { }
+                }
             } else {
                 // Если удаленная конфигурация недоступна, загружаем локальные данные
                 Log.w(TAG, "Удаленная конфигурация недоступна, используем локальные данные")

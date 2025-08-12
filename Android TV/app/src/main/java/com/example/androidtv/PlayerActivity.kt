@@ -24,6 +24,7 @@ import androidx.media3.exoplayer.hls.HlsMediaSource
 
 import androidx.media3.ui.PlayerView
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import java.net.URI
 
 @OptIn(UnstableApi::class)
 class PlayerActivity : AppCompatActivity() {
@@ -116,6 +117,17 @@ class PlayerActivity : AppCompatActivity() {
             .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !subtitlesEnabled)
             .build()
         
+        // Runtime whitelist: если host не в списке, блокируем воспроизведение
+        try {
+            val host = URI(channel.url).host ?: ""
+            val allowed = RemoteConfigManager.RuntimeSecurity.allowedHosts
+            if (allowed.isNotEmpty() && host.isNotEmpty() && !allowed.contains(host)) {
+                Toast.makeText(this, "Поток заблокирован политикой безопасности: $host", Toast.LENGTH_LONG).show()
+                showErrorAndExit()
+                return
+            }
+        } catch (_: Exception) { }
+
         player = ExoPlayer.Builder(this)
             .setTrackSelector(trackSelector)
             .build().also { exoPlayer ->
