@@ -13,10 +13,10 @@
         <domain includeSubdomains="true">githubusercontent.com</domain>
         <domain includeSubdomains="true">github.com</domain>
         <domain includeSubdomains="true">api.github.com</domain>
+        <domain includeSubdomains="true">178.134.1.158</domain>
         <trust-anchors>
             <certificates src="system"/>
         </trust-anchors>
-            <domain includeSubdomains="true">178.134.1.158</domain>
     </domain-config>
 
     <!-- IPTV потоки - разрешить HTTP и HTTPS -->
@@ -36,10 +36,10 @@
         <domain includeSubdomains="true">dmi3y-tv.ru</domain>
         <domain includeSubdomains="true">tvhls.pskovline.tv</domain>
         <domain includeSubdomains="true">spas.mediacdn.ru</domain>
+        <domain includeSubdomains="true">178.134.1.158</domain>
         <trust-anchors>
             <certificates src="system"/>
         </trust-anchors>
-            <domain includeSubdomains="true">178.134.1.158</domain>
     </domain-config>
     
     <!-- CDN потоки -->
@@ -63,9 +63,9 @@
         <domain includeSubdomains="true">icecast-vgtrk.cdnvideo.ru</domain>
         <domain includeSubdomains="true">online.video.rbc.ru</domain>
         <domain includeSubdomains="true">online-video.rbc.ru</domain>
+        <domain includeSubdomains="true">178.134.1.158</domain>
         <trust-anchors>
             <certificates src="system"/>
         </trust-anchors>
-            <domain includeSubdomains="true">178.134.1.158</domain>
     </domain-config>
 </network-security-config> 
