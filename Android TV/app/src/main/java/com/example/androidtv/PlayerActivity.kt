@@ -119,7 +119,7 @@ class PlayerActivity : AppCompatActivity() {
         
         // Runtime whitelist: если host не в списке, блокируем воспроизведение
         try {
-            val host = URI(channel.url).host ?: ""
+            val host = URI(channel.streamUrl).host ?: ""
             val allowed = RemoteConfigManager.RuntimeSecurity.allowedHosts
             if (allowed.isNotEmpty() && host.isNotEmpty() && !allowed.contains(host)) {
                 Toast.makeText(this, "Поток заблокирован политикой безопасности: $host", Toast.LENGTH_LONG).show()
