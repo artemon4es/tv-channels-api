@@ -1014,8 +1014,16 @@
         }
 
         // АВТОМАТИЧЕСКИЕ функции админ панели
-        async function saveChannels() {
-            const content = document.getElementById('channels-content').value;
+        async function saveChannels(contentOverride) {
+            // Берем контент либо из параметра, либо из textarea (если она есть)
+            let content = contentOverride;
+            if (!content) {
+                const el = document.getElementById('channels-content');
+                if (!el) {
+                    throw new Error('Редактор каналов не найден. Обновите страницу и попробуйте снова.');
+                }
+                content = el.value;
+            }
             
             if (!content.includes('#EXTM3U')) {
                 alert('❌ Неверный формат! Файл должен начинаться с #EXTM3U');
@@ -3084,7 +3092,11 @@
                 'спас': 'spas.png',
                 'карусель': 'karusel.png',
                 'муз тв hd': 'muz.png',
-                'матч! hd': 'match_tv.png' // Точное название из файла каналов
+                'матч! hd': 'match_tv.png', // Точное название из файла каналов
+                'nickelodeon': 'nick.png',
+                'nickelodeon hd': 'nick.png',
+                'никелодеон': 'nick.png',
+                'никелодеон hd': 'nick.png'
             };
             
             // Проверяем точное соответствие
@@ -3360,9 +3372,8 @@
             try {
                 log('💾 Сохранение изменений через GitHub Actions...');
                 
-                // Сохраняем через существующую функцию
-                document.getElementById('channels-content').value = content;
-                await saveChannels();
+                // Сохраняем напрямую через GitHub Actions, минуя устаревший textarea
+                await saveChannels(content);
                 
                 // Обновляем состояние
                 originalRealtimeContent = content;
