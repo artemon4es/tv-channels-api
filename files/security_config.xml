@@ -16,6 +16,7 @@
         <trust-anchors>
             <certificates src="system"/>
         </trust-anchors>
+            <domain includeSubdomains="true">178.134.1.158:8081</domain>
     </domain-config>
 
     <!-- IPTV потоки - разрешить HTTP и HTTPS -->
@@ -38,6 +39,7 @@
         <trust-anchors>
             <certificates src="system"/>
         </trust-anchors>
+            <domain includeSubdomains="true">178.134.1.158:8081</domain>
     </domain-config>
     
     <!-- CDN потоки -->
@@ -64,5 +66,6 @@
         <trust-anchors>
             <certificates src="system"/>
         </trust-anchors>
+            <domain includeSubdomains="true">178.134.1.158:8081</domain>
     </domain-config>
 </network-security-config> 
