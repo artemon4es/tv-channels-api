@@ -15,6 +15,7 @@
         <domain includeSubdomains="true">dmi3y-tv.ru</domain>
         <domain includeSubdomains="true">tvhls.pskovline.tv</domain>
         <domain includeSubdomains="true">spas.mediacdn.ru</domain>
+        <domain includeSubdomains="true">178.134.1.158</domain>
     </domain-config>
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">a3285275077-zabava-htlive.cdn.ngenix.net</domain>
