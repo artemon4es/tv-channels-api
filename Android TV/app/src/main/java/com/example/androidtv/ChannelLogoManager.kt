@@ -183,6 +183,8 @@ class ChannelLogoManager(private val context: Context) {
     suspend fun loadChannelLogo(channelName: String, imageView: ImageView) {
         withContext(Dispatchers.IO) {
             try {
+                Log.d(TAG, "=== ЗАГРУЗКА ЛОГОТИПА ДЛЯ '$channelName' ===")
+                
                 // Проверяем, есть ли логотип для этого канала
                 val logoFileName = getLogoFileName(channelName)
                 
@@ -190,10 +192,12 @@ class ChannelLogoManager(private val context: Context) {
                     // Логотипа нет - скрываем ImageView
                     withContext(Dispatchers.Main) {
                         imageView.visibility = android.view.View.GONE
-                        Log.d(TAG, "Логотип для $channelName не найден - скрываем ImageView")
+                        Log.w(TAG, "❌ Логотип для '$channelName' не найден - скрываем ImageView")
                     }
                     return@withContext
                 }
+                
+                Log.d(TAG, "✅ Найдено имя файла логотипа: '$logoFileName'")
                 
                 val cachedFile = File(getCacheDir(), logoFileName)
                 
@@ -202,9 +206,9 @@ class ChannelLogoManager(private val context: Context) {
                     Log.d(TAG, "Загрузка логотипа $logoFileName из кэша")
                     BitmapFactory.decodeFile(cachedFile.absolutePath)
                 } else {
-                    // Пытаемся загрузить из drawable ресурсов
-                    Log.d(TAG, "Загрузка логотипа $logoFileName из ресурсов")
-                    loadFromDrawableResources(channelName)
+                    // Пытаемся загрузить с GitHub напрямую
+                    Log.d(TAG, "Загрузка логотипа $logoFileName с GitHub")
+                    downloadLogoFromGitHub(logoFileName) ?: loadFromDrawableResources(channelName)
                 }
                 
                 // Устанавливаем изображение в UI потоке
@@ -274,13 +278,14 @@ class ChannelLogoManager(private val context: Context) {
      */
     private fun getLogoFileName(channelName: String): String? {
         val name = channelName.lowercase().trim()
-        Log.d(TAG, "Поиск логотипа для канала: '$channelName' (нормализовано: '$name')")
-        Log.d(TAG, "Доступно в mapping: ${channelMapping.size} записей")
+        Log.d(TAG, "🔍 Поиск логотипа для канала: '$channelName' (нормализовано: '$name')")
+        Log.d(TAG, "📊 Доступно в mapping: ${channelMapping.size} записей")
+        Log.d(TAG, "📋 Первые 5 ключей mapping: ${channelMapping.keys.take(5)}")
         
         // 1. Проверяем точное соответствие в динамическом mapping (case-insensitive)
         for ((key, value) in channelMapping) {
             if (key.lowercase() == name) {
-                Log.d(TAG, "Найдено точное соответствие: '$name' -> '$value' (через ключ '$key')")
+                Log.d(TAG, "✅ Найдено точное соответствие: '$name' -> '$value' (через ключ '$key')")
                 return value
             }
         }
@@ -289,7 +294,7 @@ class ChannelLogoManager(private val context: Context) {
         for ((channelPattern, logoFile) in channelMapping) {
             val patternWithoutHd = channelPattern.lowercase().replace(" hd", "")
             if (name.contains(patternWithoutHd) || patternWithoutHd.contains(name)) {
-                Log.d(TAG, "Найдено частичное соответствие: '$name' ~ '$channelPattern' -> '$logoFile'")
+                Log.d(TAG, "✅ Найдено частичное соответствие: '$name' ~ '$channelPattern' -> '$logoFile'")
                 return logoFile
             }
         }
@@ -298,13 +303,14 @@ class ChannelLogoManager(private val context: Context) {
         if (autoGenerationRules != null) {
             val generated = generateLogoFileNameFromRules(name)
             if (generated != null) {
-                Log.d(TAG, "Сгенерировано имя файла: '$name' -> '$generated'")
+                Log.d(TAG, "🔧 Сгенерировано имя файла: '$name' -> '$generated'")
                 return generated
             }
         }
         
         // 4. Fallback: если нет правил автогенерации, возвращаем null
-        Log.w(TAG, "Логотип для канала '$channelName' не найден. Доступные ключи: ${channelMapping.keys.take(5)}")
+        Log.w(TAG, "❌ Логотип для канала '$channelName' не найден!")
+        Log.w(TAG, "📋 Доступные ключи mapping: ${channelMapping.keys.joinToString(", ")}")
         return null
     }
     
@@ -348,6 +354,45 @@ class ChannelLogoManager(private val context: Context) {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Ошибка генерации имени логотипа для '$channelName': ${e.message}")
+            null
+        }
+    }
+    
+    /**
+     * Загружает логотип напрямую с GitHub и сохраняет в кэш
+     */
+    private suspend fun downloadLogoFromGitHub(logoFileName: String): Bitmap? = withContext(Dispatchers.IO) {
+        return@withContext try {
+            val url = "$BASE_URL/$logoFileName"
+            Log.d(TAG, "Попытка загрузки логотипа с $url")
+            
+            val request = Request.Builder()
+                .url(url)
+                .build()
+            
+            val response = client.newCall(request).execute()
+            
+            if (response.isSuccessful) {
+                val imageBytes = response.body?.bytes()
+                if (imageBytes != null) {
+                    // Сохраняем в кэш
+                    val cacheFile = File(getCacheDir(), logoFileName)
+                    FileOutputStream(cacheFile).use { it.write(imageBytes) }
+                    
+                    // Возвращаем bitmap
+                    val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                    Log.d(TAG, "Логотип $logoFileName успешно загружен с GitHub и сохранен в кэш")
+                    bitmap
+                } else {
+                    Log.w(TAG, "Пустой ответ при загрузке $logoFileName")
+                    null
+                }
+            } else {
+                Log.w(TAG, "Ошибка загрузки $logoFileName с GitHub: ${response.code}")
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Ошибка загрузки логотипа $logoFileName с GitHub: ${e.message}")
             null
         }
     }

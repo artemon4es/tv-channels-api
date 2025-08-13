@@ -162,7 +162,11 @@ class MainActivity : AppCompatActivity() {
                 // ВСЕГДА проверяем и обновляем каналы при запуске
                 Log.d(TAG, "Проверка обновлений каналов при запуске...")
                 
-                // Сначала загружаем mapping логотипов
+                // Сначала принудительно загружаем mapping логотипов из GitHub
+                Log.d(TAG, "Принудительная загрузка mapping логотипов...")
+                channelLogoManager.forceUpdateMapping()
+                
+                // Затем проверяем обновления логотипов
                 channelLogoManager.checkAndUpdateChannelLogos()
                 
                 updateChannelsFromRemote()
