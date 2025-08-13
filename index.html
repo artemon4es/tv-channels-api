@@ -641,18 +641,18 @@
                     
                     <!-- НОВЫЙ РАЗДЕЛ: Назначение существующих логотипов -->
                     <div style="margin-top: 20px; margin-bottom: 20px; padding: 15px; background: #e7f3ff; border-radius: 8px; border-left: 4px solid #007bff;">
-                        <h4>🔗 Назначение существующих логотипов каналам</h4>
+                        <h4>🔗 Управление логотипами каналов</h4>
                         <p style="margin: 0 0 15px 0; font-size: 14px; color: #0056b3;">
                             <strong>Идеальный способ:</strong> Назначьте уже загруженные логотипы каналам, которые в них нуждаются
                         </p>
                         
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; align-items: end;">
                             <div>
-                                <label><strong>1️⃣ Канал без логотипа:</strong></label>
+                                <label><strong>1️⃣ Любой канал:</strong></label>
                                 <select id="channel-without-logo" style="width: 100%; padding: 8px; border: 1px solid #007bff; border-radius: 4px; background: white;">
                                     <option value="">Нажмите "Загрузить" справа →</option>
                                 </select>
-                                <div style="font-size: 10px; color: #0056b3; margin-top: 2px;">Показываются каналы без назначенных логотипов</div>
+                                <div style="font-size: 10px; color: #0056b3; margin-top: 2px;">❌ без логотипа в начале, ✅ с логотипом далее</div>
                             </div>
                             
                             <div>
@@ -3497,18 +3497,21 @@
             }
         }
 
-        // Генерация имени файла логотипа на основе названия канала
+        // Генерация имени файла логотипа на основе названия канала (синхронизировано с Android)
         function generateLogoFileName(channelName) {
             const name = channelName.toLowerCase().trim();
             
-            // 1. Проверяем точное соответствие в динамическом mapping
-            if (channelLogoMapping[name]) {
-                return channelLogoMapping[name];
+            // 1. Проверяем точное соответствие в динамическом mapping (case-insensitive)
+            for (const [key, value] of Object.entries(channelLogoMapping)) {
+                if (key.toLowerCase() === name) {
+                    return value;
+                }
             }
             
-            // 2. Пытаемся найти по частичному совпадению в динамическом mapping
+            // 2. Пытаемся найти по частичному совпадению в динамическом mapping (case-insensitive)
             for (const [channelPattern, logoFile] of Object.entries(channelLogoMapping)) {
-                if (name.includes(channelPattern.replace(' hd', '')) || channelPattern.replace(' hd', '').includes(name)) {
+                const patternWithoutHd = channelPattern.toLowerCase().replace(' hd', '');
+                if (name.includes(patternWithoutHd) || patternWithoutHd.includes(name)) {
                     return logoFile;
                 }
             }
@@ -3519,7 +3522,6 @@
             }
             
             // 4. Fallback: если нет правил автогенерации, возвращаем null
-            console.log('Логотип для канала', channelName, 'не найден');
             return null;
         }
 
@@ -4022,10 +4024,10 @@
 
         // ===== НАЗНАЧЕНИЕ ЛОГОТИПОВ КАНАЛАМ =====
         
-        // Загрузка каналов без логотипов и доступных логотипов
+        // Загрузка ВСЕХ каналов для назначения логотипов
         async function loadChannelsAndLogos() {
             try {
-                log('🔄 Загрузка каналов без логотипов и доступных логотипов...');
+                log('🔄 Загрузка всех каналов для управления логотипами...');
                 
                 // Загружаем mapping каналов
                 await loadChannelLogoMapping();
@@ -4034,30 +4036,38 @@
                 const channels = await getCurrentChannelsFromGitHub();
                 const channelList = parseM3UFile(channels);
                 
-                // Определяем каналы без логотипов
-                const channelsWithoutLogos = [];
-                channelList.forEach(channel => {
+                // Заполняем список ВСЕХ каналов с информацией о логотипах
+                const channelSelect = document.getElementById('channel-without-logo');
+                channelSelect.innerHTML = '<option value="">Выберите канал для назначения логотипа...</option>';
+                
+                // Сортируем каналы: сначала без логотипов, потом с логотипами
+                const channelsWithStatus = channelList.map(channel => {
                     const logoFileName = generateLogoFileName(channel.name);
-                    if (!logoFileName) {
-                        channelsWithoutLogos.push(channel);
-                    }
+                    return {
+                        ...channel,
+                        hasLogo: !!logoFileName,
+                        logoFile: logoFileName
+                    };
+                }).sort((a, b) => {
+                    // Сначала каналы без логотипов
+                    if (!a.hasLogo && b.hasLogo) return -1;
+                    if (a.hasLogo && !b.hasLogo) return 1;
+                    return a.name.localeCompare(b.name);
                 });
                 
-                // Заполняем список каналов без логотипов
-                const channelSelect = document.getElementById('channel-without-logo');
-                channelSelect.innerHTML = '<option value="">Выберите канал без логотипа...</option>';
-                
-                channelsWithoutLogos.forEach(channel => {
+                channelsWithStatus.forEach(channel => {
                     const option = document.createElement('option');
                     option.value = channel.name;
-                    option.textContent = `❌ ${channel.name}`;
+                    const statusIcon = channel.hasLogo ? '✅' : '❌';
+                    const statusText = channel.hasLogo ? `(текущий: ${channel.logoFile})` : '(без логотипа)';
+                    option.textContent = `${statusIcon} ${channel.name} ${statusText}`;
                     channelSelect.appendChild(option);
                 });
                 
                 // Загружаем доступные логотипы
                 await loadAvailableLogos();
                 
-                log(`✅ Загружено: ${channelsWithoutLogos.length} каналов без логотипов`);
+                log(`✅ Загружено: ${channelList.length} каналов (${channelsWithStatus.filter(c => !c.hasLogo).length} без логотипов, ${channelsWithStatus.filter(c => c.hasLogo).length} с логотипами)`);
                 
             } catch (error) {
                 log(`❌ Ошибка загрузки данных: ${error.message}`);
