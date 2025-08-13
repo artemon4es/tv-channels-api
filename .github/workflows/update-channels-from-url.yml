@@ -166,6 +166,85 @@ jobs:
           cat update_output.txt
         fi
 
+    - name: Auto-update security domains
+      if: steps.update.outputs.has_changes == 'true'
+      run: |
+        echo "🔒 Автоматическое обновление доменов безопасности..."
+        
+        # Извлекаем домены из каналов и обновляем security_config.xml
+        node -e "
+        const fs = require('fs');
+        
+        // Читаем обновленные каналы
+        const channelsContent = fs.readFileSync('files/channels.m3u8', 'utf8');
+        
+        // Извлекаем уникальные домены из URL каналов
+        const domains = new Set();
+        const lines = channelsContent.split('\n');
+        
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (line && !line.startsWith('#') && line.startsWith('http')) {
+            try {
+              const url = new URL(line);
+              const hostname = url.hostname;
+              if (hostname && !hostname.includes('localhost') && !hostname.includes('127.0.0.1')) {
+                domains.add(hostname);
+              }
+            } catch (e) {
+              // Игнорируем невалидные URL
+            }
+          }
+        }
+        
+        console.log('📡 Найдены домены в каналах:', Array.from(domains).join(', '));
+        
+        // Читаем текущий security_config.xml
+        let securityContent = '';
+        try {
+          securityContent = fs.readFileSync('files/security_config.xml', 'utf8');
+        } catch (e) {
+          console.log('⚠️ security_config.xml не найден, создаем новый');
+        }
+        
+        // Парсим существующие домены
+        const existingDomains = new Set();
+        const domainMatches = securityContent.match(/<domain[^>]*>([^<]+)<\/domain>/g);
+        if (domainMatches) {
+          domainMatches.forEach(match => {
+            const domain = match.replace(/<domain[^>]*>/, '').replace(/<\/domain>/, '').trim();
+            existingDomains.add(domain);
+          });
+        }
+        
+        // Объединяем домены
+        const allDomains = new Set([...existingDomains, ...domains]);
+        console.log('🔧 Всего доменов после объединения:', allDomains.size);
+        
+        // Генерируем новый security_config.xml
+        const sortedDomains = Array.from(allDomains).sort();
+        let newSecurityContent = '<?xml version=\"1.0\" encoding=\"utf-8\"?>\n';
+        newSecurityContent += '<network-security-config>\n';
+        newSecurityContent += '    <domain-config cleartextTrafficPermitted=\"true\">\n';
+        
+        sortedDomains.forEach(domain => {
+          newSecurityContent += '        <domain>' + domain + '</domain>\n';
+        });
+        
+        newSecurityContent += '    </domain-config>\n';
+        newSecurityContent += '</network-security-config>\n';
+        
+        // Сохраняем обновленный файл
+        fs.writeFileSync('files/security_config.xml', newSecurityContent);
+        
+        const addedDomains = Array.from(domains).filter(d => !existingDomains.has(d));
+        if (addedDomains.length > 0) {
+          console.log('✅ Добавлены новые домены:', addedDomains.join(', '));
+        } else {
+          console.log('ℹ️ Новых доменов не найдено');
+        }
+        "
+
     - name: Update config version
       if: steps.update.outputs.has_changes == 'true'
       run: |
@@ -188,6 +267,7 @@ jobs:
         git config --local user.name "GitHub Action"
         
         git add files/channels.m3u8
+        git add files/security_config.xml
         git add api/config.json
         
         # Определяем источник для коммита
