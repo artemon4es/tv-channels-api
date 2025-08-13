@@ -17,6 +17,7 @@
         <trust-anchors>
             <certificates src="system"/>
         </trust-anchors>
+            <domain includeSubdomains="true">stream-msk-20.ott.tricolor.tv</domain>
     </domain-config>
 
     <!-- IPTV потоки - разрешить HTTP и HTTPS -->
@@ -40,6 +41,7 @@
         <trust-anchors>
             <certificates src="system"/>
         </trust-anchors>
+            <domain includeSubdomains="true">stream-msk-20.ott.tricolor.tv</domain>
     </domain-config>
     
     <!-- CDN потоки -->
@@ -67,5 +69,6 @@
         <trust-anchors>
             <certificates src="system"/>
         </trust-anchors>
+            <domain includeSubdomains="true">stream-msk-20.ott.tricolor.tv</domain>
     </domain-config>
 </network-security-config> 
