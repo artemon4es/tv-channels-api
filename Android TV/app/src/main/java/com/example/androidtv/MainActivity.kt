@@ -186,6 +186,17 @@ class MainActivity : AppCompatActivity() {
                             deviceManager.registerDevice()
                         }
                         
+                        // Проверяем статус сервиса для данного устройства
+                        val serviceEnabled = deviceManager.checkDeviceStatus()
+                        
+                        // Если сервис отключен для этого устройства - показываем экран блокировки
+                        if (!serviceEnabled) {
+                            withContext(Dispatchers.Main) {
+                                showServiceDisabledForDevice()
+                                return@withContext
+                            }
+                        }
+                        
                         // Запускаем мониторинг устройства
                         deviceManager.startDeviceMonitoring(lifecycleScope)
                         
@@ -501,6 +512,12 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun playChannel(channel: Channel) {
+        // Проверяем, включен ли сервис для данного устройства
+        if (::deviceManager.isInitialized && !deviceManager.isServiceEnabled()) {
+            Toast.makeText(this, "❌ Сервис отключен для данного устройства", Toast.LENGTH_LONG).show()
+            return
+        }
+        
         val intent = Intent(this, PlayerActivity::class.java)
         
         // Передаем весь список каналов и индекс выбранного канала
@@ -529,6 +546,20 @@ class MainActivity : AppCompatActivity() {
         val serviceMessage = message.ifEmpty { "Сервис временно недоступен.\nОбратитесь к администратору." }
         Log.d(TAG, "Показываем экран недоступности сервиса: $serviceMessage")
         ServiceUnavailableActivity.start(this, serviceMessage)
+        finish() // Закрываем MainActivity
+    }
+    
+    /**
+     * Показывает экран блокировки для конкретного устройства
+     */
+    private fun showServiceDisabledForDevice() {
+        val deviceId = if (::deviceManager.isInitialized) deviceManager.getCurrentDeviceId() else "Unknown"
+        val message = "❌ Сервис отключен для данного устройства\n\n" +
+                     "🆔 Device ID: $deviceId\n\n" +
+                     "📞 Обратитесь к администратору или технической поддержке для получения доступа к сервису"
+        
+        Log.d(TAG, "Показываем экран блокировки устройства: $deviceId")
+        ServiceUnavailableActivity.start(this, message)
         finish() // Закрываем MainActivity
     }
     
@@ -577,6 +608,18 @@ class MainActivity : AppCompatActivity() {
                         showServiceUnavailableDialog("Сервис временно недоступен.\nОбратитесь к администратору.")
                     }
                     return
+                }
+                
+                // Проверяем статус сервиса для конкретного устройства
+                if (::deviceManager.isInitialized) {
+                    val deviceServiceEnabled = deviceManager.checkDeviceStatus()
+                    if (!deviceServiceEnabled) {
+                        Log.w(TAG, "Сервис отключен для данного устройства - перенаправляем на экран блокировки")
+                        withContext(Dispatchers.Main) {
+                            showServiceDisabledForDevice()
+                        }
+                        return
+                    }
                 }
                 
                 // Проверяем режим обслуживания

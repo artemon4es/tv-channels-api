@@ -37,6 +37,7 @@ class PlayerActivity : AppCompatActivity() {
     private var subtitlesEnabled = false
     private lateinit var channelIndicator: LinearLayout
     private lateinit var channelNumberText: TextView
+    private lateinit var deviceManager: DeviceManager
 
     private lateinit var channelList: ArrayList<Channel>
     private var channelIndex: Int = 0
@@ -49,6 +50,9 @@ class PlayerActivity : AppCompatActivity() {
         
         // Предотвращаем выключение экрана во время просмотра видео
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+        // Инициализируем DeviceManager для проверки статуса сервиса
+        deviceManager = DeviceManager(this)
 
         playerView = findViewById(R.id.playerView)
         playerView.useController = true // чтобы работала кнопка субтитров
@@ -107,6 +111,14 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun playChannel(index: Int) {
         val channel = channelList[index]
+        
+        // Проверяем, включен ли сервис для данного устройства
+        if (!deviceManager.isServiceEnabled()) {
+            Toast.makeText(this, "❌ Сервис отключен для данного устройства", Toast.LENGTH_LONG).show()
+            showErrorAndExit()
+            return
+        }
+        
         player?.release()
         
         // Используем современный способ создания трек-селектора
