@@ -27,8 +27,8 @@
     "background_url": "https://artemon4es.github.io/tv-channels-api/files/splash/background.png"
   },
   "channel_logos_config": {
-    "version": 2,
-    "last_updated": "2025-08-12T13:38:24.718Z",
+    "version": 3,
+    "last_updated": "2025-08-13T13:55:08.185Z",
     "base_url": "https://artemon4es.github.io/tv-channels-api/files/channel-logos"
   },
   "api_info": {
