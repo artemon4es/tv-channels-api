@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "last_updated": "2025-01-12T19:00:00Z",
+  "version": 2,
+  "last_updated": "2025-01-12T20:00:00Z",
   "mappings": {
     "первый канал hd": "ortl.png",
     "россия 1 hd": "rossiya-1.png",
@@ -25,6 +25,8 @@
     "матч! hd": "match_tv.png",
     "nickelodeon": "nick.png",
     "nickelodeon hd": "nick.png",
+    "Nickelodeon": "nick.png",
+    "Nickelodeon HD": "nick.png",
     "никелодеон": "nick.png",
     "никелодеон hd": "nick.png"
   },

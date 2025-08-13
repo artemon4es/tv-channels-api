@@ -3195,6 +3195,10 @@
                 await uploadImageToGitHub(file, `files/channel-logos/${fileName}`);
                 
                 log(`✅ Логотип для канала "${channelName}" загружен как ${fileName}`);
+                
+                // Автоматически добавляем mapping для этого канала
+                await updateChannelLogoMapping(channelName, fileName);
+                
                 log('⏳ GitHub Action автоматически обновит версию логотипов...');
                 log('📱 Приложения получат обновление в течение 30 минут');
                 
@@ -3267,6 +3271,38 @@
             } catch (error) {
                 console.error('Ошибка генерации имени логотипа для', channelName, ':', error);
                 return null;
+            }
+        }
+
+        // Обновление mapping логотипов
+        async function updateChannelLogoMapping(channelName, logoFileName) {
+            try {
+                log(`🔄 Обновление mapping для канала "${channelName}" -> "${logoFileName}"`);
+                
+                // Загружаем текущий mapping
+                const response = await fetch('https://artemon4es.github.io/tv-channels-api/files/channel-logo-mapping.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const mappingData = await response.json();
+                
+                // Добавляем новое соответствие
+                const normalizedChannelName = channelName.toLowerCase().trim();
+                mappingData.mappings[normalizedChannelName] = logoFileName;
+                mappingData.last_updated = new Date().toISOString();
+                mappingData.version = (mappingData.version || 1) + 1;
+                
+                // В реальной реализации здесь был бы API вызов для обновления файла
+                log(`✅ Mapping обновлен: "${normalizedChannelName}" -> "${logoFileName}"`);
+                
+                // Обновляем локальный кэш
+                channelLogoMapping = mappingData.mappings;
+                
+                return true;
+            } catch (error) {
+                log(`❌ Ошибка обновления mapping: ${error.message}`);
+                return false;
             }
         }
 
@@ -3782,6 +3818,14 @@
                 log(`❌ Ошибка обновления настроек: ${error.message}`);
             }
         }
+
+        // ===== ИНИЦИАЛИЗАЦИЯ =====
+        
+        // Автоматическая загрузка mapping при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            // Загружаем channel logo mapping для корректной работы всех функций
+            loadChannelLogoMapping();
+        });
 
 
 

@@ -45,7 +45,9 @@ class ChannelLogoManager(private val context: Context) {
     
     init {
         // Загружаем кэшированный mapping при инициализации
-        loadCachedMapping()
+        if (!loadCachedMapping()) {
+            Log.w(TAG, "Кэшированный mapping не найден, будет загружен из GitHub при первом обновлении")
+        }
     }
     
     /**
@@ -122,6 +124,13 @@ class ChannelLogoManager(private val context: Context) {
         }
     }
 
+    /**
+     * Принудительно обновляет mapping логотипов
+     */
+    suspend fun forceUpdateMapping(): Boolean {
+        return loadChannelMapping()
+    }
+    
     /**
      * Проверяет и загружает обновления логотипов каналов
      */
@@ -265,25 +274,37 @@ class ChannelLogoManager(private val context: Context) {
      */
     private fun getLogoFileName(channelName: String): String? {
         val name = channelName.lowercase().trim()
+        Log.d(TAG, "Поиск логотипа для канала: '$channelName' (нормализовано: '$name')")
+        Log.d(TAG, "Доступно в mapping: ${channelMapping.size} записей")
         
-        // 1. Проверяем точное соответствие в динамическом mapping
-        channelMapping[name]?.let { return it }
+        // 1. Проверяем точное соответствие в динамическом mapping (case-insensitive)
+        for ((key, value) in channelMapping) {
+            if (key.lowercase() == name) {
+                Log.d(TAG, "Найдено точное соответствие: '$name' -> '$value' (через ключ '$key')")
+                return value
+            }
+        }
         
         // 2. Пытаемся найти по частичному совпадению в динамическом mapping
         for ((channelPattern, logoFile) in channelMapping) {
-            if (name.contains(channelPattern.replace(" hd", "")) || 
-                channelPattern.replace(" hd", "").contains(name)) {
+            val patternWithoutHd = channelPattern.lowercase().replace(" hd", "")
+            if (name.contains(patternWithoutHd) || patternWithoutHd.contains(name)) {
+                Log.d(TAG, "Найдено частичное соответствие: '$name' ~ '$channelPattern' -> '$logoFile'")
                 return logoFile
             }
         }
         
         // 3. Если ничего не найдено в mapping, пытаемся сгенерировать имя автоматически
         if (autoGenerationRules != null) {
-            return generateLogoFileNameFromRules(name)
+            val generated = generateLogoFileNameFromRules(name)
+            if (generated != null) {
+                Log.d(TAG, "Сгенерировано имя файла: '$name' -> '$generated'")
+                return generated
+            }
         }
         
         // 4. Fallback: если нет правил автогенерации, возвращаем null
-        Log.d(TAG, "Логотип для канала '$channelName' не найден")
+        Log.w(TAG, "Логотип для канала '$channelName' не найден. Доступные ключи: ${channelMapping.keys.take(5)}")
         return null
     }
     

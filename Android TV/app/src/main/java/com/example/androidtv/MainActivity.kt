@@ -161,6 +161,10 @@ class MainActivity : AppCompatActivity() {
                 
                 // ВСЕГДА проверяем и обновляем каналы при запуске
                 Log.d(TAG, "Проверка обновлений каналов при запуске...")
+                
+                // Сначала загружаем mapping логотипов
+                channelLogoManager.checkAndUpdateChannelLogos()
+                
                 updateChannelsFromRemote()
 
                 // Загружаем runtime whitelist доменов из удаленного security_config.xml
