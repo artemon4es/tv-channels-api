@@ -70,6 +70,14 @@ config.local.*
 # Документация изменений (локальная)
 CHANGELOG_CLOUD_MANAGEMENT.md
 
+# Markdown файлы (кроме README)
+*.md
+!README.md
+!files/updates/README.md
+
+# Папка лого каналы (не нужна в гите)
+лого\ каналы/
+
 # Build output
 Android\ TV/app/build/
 Android\ TV/build/
