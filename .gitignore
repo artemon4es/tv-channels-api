@@ -57,6 +57,9 @@ hs_err_pid*.log
 # Ключи подписи (безопасность)
 *.jks
 *.keystore
+keyA.jks
+my-release-key.jks
+my-release-key2.jks
 
 # Windows
 Thumbs.db
