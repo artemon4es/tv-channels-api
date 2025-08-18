@@ -17,9 +17,8 @@ on:
         required: false
         type: boolean
         default: false
-  schedule:
-    # Автоматическая проверка каждые 30 минут
-    - cron: '*/30 * * * *'
+  # schedule удален - теперь workflow запускается только через админку
+  # чтобы избежать конфликтов с автоматическим обновлением
 
 jobs:
   smart-update:
