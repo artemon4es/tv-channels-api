@@ -173,8 +173,27 @@ jobs:
               .trim();
           }
 
-          // Основная функция поиска совпадений каналов
-          function findChannelMatch(currentChannel, sourceChannels) {
+          // Функция поиска для ОСНОВНОГО источника (только точные совпадения)
+          function findPrimarySourceMatch(currentChannel, sourceChannels) {
+            // Фильтруем источники, исключаем нежелательные каналы
+            const filteredSources = sourceChannels.filter(ch => !isUnwantedChannel(ch.name));
+            
+            // 1. Точное совпадение по EXTINF строке
+            let match = filteredSources.find(ch => ch.extinf === currentChannel.extinf);
+            if (match) return { match, type: 'exact_extinf' };
+            
+            // 2. Точное совпадение по названию
+            const currentName = currentChannel.name.toLowerCase();
+            match = filteredSources.find(ch => ch.name.toLowerCase() === currentName);
+            if (match) return { match, type: 'exact_name' };
+            
+            // 3. Для основного источника НЕ ДЕЛАЕМ умную замену!
+            // Если нет точного совпадения - возвращаем null
+            return null;
+          }
+
+          // Функция поиска для РЕЗЕРВНОГО источника (умная логика)
+          function findBackupSourceMatch(currentChannel, sourceChannels) {
             const currentName = currentChannel.name.toLowerCase();
             const currentBaseName = getBaseName(currentChannel.name);
             
@@ -254,7 +273,7 @@ jobs:
           }
 
           // Функция обновления каналов
-          async function updateChannels(currentChannels, sourceChannels, sourceName) {
+          async function updateChannels(currentChannels, sourceChannels, sourceName, isPrimary = true) {
             console.log(`🔄 Обновление каналов из источника: ${sourceName}`);
             console.log(`📊 Текущих каналов: ${currentChannels.length}, источник: ${sourceChannels.length}`);
             
@@ -297,40 +316,64 @@ jobs:
             
             // КРИТИЧЕСКИ ВАЖНО: Обрабатываем ТОЛЬКО исходный список каналов
             console.log(`🎯 Обработка исходного списка: ${currentChannels.length} каналов`);
+            console.log(`🔧 Режим поиска: ${isPrimary ? 'ОСНОВНОЙ (только точные совпадения)' : 'РЕЗЕРВНЫЙ (умная логика)'}`);
             
             for (const currentChannel of currentChannels) {
-              const matchResult = findChannelMatch(currentChannel, sourceChannels);
+              // Выбираем правильную функцию поиска в зависимости от источника
+              const matchResult = isPrimary 
+                ? findPrimarySourceMatch(currentChannel, sourceChannels)
+                : findBackupSourceMatch(currentChannel, sourceChannels);
               
               if (matchResult) {
                 const { match, type } = matchResult;
                 console.log(`🔍 Найдено совпадение для "${currentChannel.name}": ${match.name} (${type})`);
                 
-                // Проверяем работоспособность нового потока
+                // ВАЖНО: Проверяем работоспособность нового потока КАЖДОГО канала
                 const isWorking = await checkStream(match.url);
                 
                 if (isWorking) {
-                  // Создаем копию канала для обновления
-                  const updatedChannel = { ...currentChannel };
+                  // Создаем копию канала с оригинальным названием и метаданными
+                  const updatedChannel = { 
+                    extinf: currentChannel.extinf,  // Сохраняем оригинальный EXTINF
+                    name: currentChannel.name,      // Сохраняем оригинальное название
+                    url: match.url                  // ТОЛЬКО URL меняем!
+                  };
                   
-                  // Обновляем URL если он отличается
+                  // Считаем обновлением только если URL изменился
                   if (currentChannel.url !== match.url) {
-                    updatedChannel.url = match.url;
                     updatedCount++;
-                    console.log(`✅ Обновлен URL: ${currentChannel.name} -> ${match.url}`);
+                    console.log(`✅ Обновлен URL для "${currentChannel.name}": ${currentChannel.url} → ${match.url}`);
+                  } else {
+                    console.log(`ℹ️ URL для "${currentChannel.name}" не изменился`);
                   }
                   
                   finalChannels.push(updatedChannel);
                   workingChannels.push(currentChannel.name);
                 } else {
-                  console.log(`⚠️ Новый поток не работает для: ${currentChannel.name}, УДАЛЯЕМ канал`);
-                  brokenChannels.push(currentChannel.name);
-                  removedChannels.push(currentChannel.name);
-                  // Канал НЕ добавляется в finalChannels - он удаляется!
+                  console.log(`⚠️ Новый поток не работает для: ${currentChannel.name}`);
+                  if (isPrimary) {
+                    // Для основного источника сохраняем канал с оригинальным URL
+                    console.log(`🔄 Основной источник: сохраняем "${currentChannel.name}" с оригинальным URL`);
+                    finalChannels.push(currentChannel);
+                    brokenChannels.push(currentChannel.name);
+                  } else {
+                    // Для резервного источника удаляем канал
+                    console.log(`🗑️ Резервный источник: удаляем "${currentChannel.name}"`);
+                    brokenChannels.push(currentChannel.name);
+                    removedChannels.push(currentChannel.name);
+                  }
                 }
               } else {
-                console.log(`❌ Совпадение НЕ найдено для: ${currentChannel.name}, УДАЛЯЕМ канал`);
-                removedChannels.push(currentChannel.name);
-                // Канал НЕ добавляется в finalChannels - он удаляется!
+                console.log(`❌ Совпадение НЕ найдено для: ${currentChannel.name}`);
+                if (isPrimary) {
+                  // Для основного источника сохраняем канал с оригинальным URL
+                  console.log(`🔄 Основной источник: сохраняем "${currentChannel.name}" без изменений`);
+                  finalChannels.push(currentChannel);
+                } else {
+                  // Для резервного источника удаляем канал
+                  console.log(`🗑️ Резервный источник: удаляем "${currentChannel.name}"`);
+                  removedChannels.push(currentChannel.name);
+                }
               }
             }
             
@@ -397,7 +440,7 @@ jobs:
                   const primaryContent = await fetchContent(PRIMARY_URL);
                   const primaryChannels = parseM3U(primaryContent);
                   
-                  const primaryResult = await updateChannels(currentChannels, primaryChannels, 'Основной');
+                  const primaryResult = await updateChannels(currentChannels, primaryChannels, 'Основной', true); // true = основной источник
                   
                   if (primaryResult.quality >= 0.6) {
                     bestResult = primaryResult;
@@ -418,7 +461,7 @@ jobs:
                   const backupContent = await fetchContent(BACKUP_URL);
                   const backupChannels = parseM3U(backupContent);
                   
-                  const backupResult = await updateChannels(currentChannels, backupChannels, 'Резервный');
+                  const backupResult = await updateChannels(currentChannels, backupChannels, 'Резервный', false); // false = резервный источник
                   
                   if (backupResult.quality >= 0.3) {
                     bestResult = backupResult;
