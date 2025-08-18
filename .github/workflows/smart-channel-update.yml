@@ -1,0 +1,462 @@
+name: Smart Channel Update with Stream Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      primary_url:
+        description: 'Primary M3U source URL'
+        required: true
+        type: string
+      backup_url:
+        description: 'Backup M3U source URL'
+        required: false
+        type: string
+        default: 'https://streaming.televizor-24-tochka.ru/playlist.m3u8'
+      force_backup:
+        description: 'Force use backup source'
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    # Автоматическая проверка каждые 2 часа
+    - cron: '0 */2 * * *'
+
+jobs:
+  smart-update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          npm install axios
+
+      - name: Smart Channel Update with Stream Validation
+        run: |
+          # Создаем умный скрипт обновления каналов
+          cat > smart_update.js << 'EOF'
+          const fs = require('fs');
+          const https = require('https');
+          const http = require('http');
+          const { URL } = require('url');
+
+          // Конфигурация
+          const PRIMARY_URL = process.env.PRIMARY_URL || '${{ github.event.inputs.primary_url }}';
+          const BACKUP_URL = process.env.BACKUP_URL || '${{ github.event.inputs.backup_url }}';
+          const FORCE_BACKUP = process.env.FORCE_BACKUP === 'true' || '${{ github.event.inputs.force_backup }}' === 'true';
+          
+          // Тайм-ауты для проверки потоков
+          const STREAM_CHECK_TIMEOUT = 10000; // 10 секунд
+          const MAX_STREAMS_TO_CHECK = 5; // Проверяем только первые 5 потоков
+          
+          console.log('🚀 Начинаем умное обновление каналов...');
+          console.log(`📡 Основной источник: ${PRIMARY_URL || 'не указан'}`);
+          console.log(`🔄 Резервный источник: ${BACKUP_URL}`);
+          console.log(`🎯 Принудительное использование резерва: ${FORCE_BACKUP}`);
+
+          // Функция для загрузки контента по URL
+          async function fetchContent(url) {
+            return new Promise((resolve, reject) => {
+              const client = url.startsWith('https') ? https : http;
+              const request = client.get(url, { timeout: 15000 }, (response) => {
+                if (response.statusCode !== 200) {
+                  reject(new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`));
+                  return;
+                }
+                
+                let data = '';
+                response.on('data', chunk => data += chunk);
+                response.on('end', () => resolve(data));
+              });
+              
+              request.on('timeout', () => {
+                request.destroy();
+                reject(new Error('Request timeout'));
+              });
+              
+              request.on('error', reject);
+            });
+          }
+
+          // Функция для проверки работоспособности потока
+          async function checkStream(url) {
+            return new Promise((resolve) => {
+              try {
+                const client = url.startsWith('https') ? https : http;
+                const request = client.get(url, { timeout: STREAM_CHECK_TIMEOUT }, (response) => {
+                  // Проверяем статус ответа
+                  const isWorking = response.statusCode === 200 || response.statusCode === 206;
+                  request.destroy();
+                  resolve(isWorking);
+                });
+                
+                request.on('timeout', () => {
+                  request.destroy();
+                  resolve(false);
+                });
+                
+                request.on('error', () => {
+                  resolve(false);
+                });
+              } catch (error) {
+                resolve(false);
+              }
+            });
+          }
+
+          // Функция парсинга M3U файла
+          function parseM3U(content) {
+            const lines = content.split('\n').map(line => line.trim()).filter(line => line);
+            const channels = [];
+            
+            for (let i = 0; i < lines.length; i++) {
+              if (lines[i].startsWith('#EXTINF')) {
+                const extinf = lines[i];
+                const name = extinf.split(',').pop().trim();
+                const nextLine = lines[i + 1];
+                
+                if (nextLine && !nextLine.startsWith('#')) {
+                  channels.push({
+                    extinf: extinf,
+                    name: name,
+                    url: nextLine
+                  });
+                  i++; // Пропускаем следующую строку
+                }
+              }
+            }
+            
+            return channels;
+          }
+
+          // Основная функция поиска совпадений каналов
+          function findChannelMatch(currentChannel, sourceChannels) {
+            const currentName = currentChannel.name.toLowerCase();
+            
+            // 1. Точное совпадение по EXTINF строке
+            let match = sourceChannels.find(ch => ch.extinf === currentChannel.extinf);
+            if (match) return { match, type: 'exact_extinf' };
+            
+            // 2. Точное совпадение по названию
+            match = sourceChannels.find(ch => ch.name.toLowerCase() === currentName);
+            if (match) return { match, type: 'exact_name' };
+            
+            // 3. Поиск HD версии для обычных каналов
+            if (!currentName.includes('hd')) {
+              match = sourceChannels.find(ch => {
+                const sourceName = ch.name.toLowerCase();
+                return sourceName.includes(currentName.replace(/\s+/g, '')) && sourceName.includes('hd');
+              });
+              if (match) return { match, type: 'hd_version' };
+            }
+            
+            // 4. Поиск без HD для HD каналов
+            if (currentName.includes('hd')) {
+              const nameWithoutHD = currentName.replace(/\s*hd\s*/g, '').trim();
+              match = sourceChannels.find(ch => {
+                const sourceName = ch.name.toLowerCase();
+                return sourceName.includes(nameWithoutHD) || nameWithoutHD.includes(sourceName);
+              });
+              if (match) return { match, type: 'non_hd_version' };
+            }
+            
+            // 5. Частичное совпадение по ключевым словам
+            const keywords = currentName.split(/\s+/).filter(word => word.length > 2);
+            match = sourceChannels.find(ch => {
+              const sourceName = ch.name.toLowerCase();
+              return keywords.some(keyword => sourceName.includes(keyword));
+            });
+            if (match) return { match, type: 'partial_match' };
+            
+            return null;
+          }
+
+          // Функция обновления каналов
+          async function updateChannels(currentChannels, sourceChannels, sourceName) {
+            console.log(`🔄 Обновление каналов из источника: ${sourceName}`);
+            console.log(`📊 Текущих каналов: ${currentChannels.length}, источник: ${sourceChannels.length}`);
+            
+            const updatedChannels = [];
+            const workingChannels = [];
+            const brokenChannels = [];
+            let updatedCount = 0;
+            
+            // Проверяем только первые несколько потоков для определения качества источника
+            const streamsToCheck = sourceChannels.slice(0, MAX_STREAMS_TO_CHECK);
+            console.log(`🔍 Проверяем работоспособность ${streamsToCheck.length} потоков...`);
+            
+            let workingStreams = 0;
+            for (const channel of streamsToCheck) {
+              const isWorking = await checkStream(channel.url);
+              if (isWorking) {
+                workingStreams++;
+                console.log(`✅ Поток работает: ${channel.name}`);
+              } else {
+                console.log(`❌ Поток не работает: ${channel.name}`);
+              }
+            }
+            
+            const sourceQuality = workingStreams / streamsToCheck.length;
+            console.log(`📈 Качество источника: ${Math.round(sourceQuality * 100)}% (${workingStreams}/${streamsToCheck.length})`);
+            
+            // Если качество источника слишком низкое, не используем его
+            if (sourceQuality < 0.3) {
+              console.log(`⚠️ Качество источника слишком низкое (${Math.round(sourceQuality * 100)}%), пропускаем обновление`);
+              return {
+                channels: currentChannels,
+                updated: 0,
+                quality: sourceQuality,
+                working: [],
+                broken: []
+              };
+            }
+            
+            for (const currentChannel of currentChannels) {
+              const matchResult = findChannelMatch(currentChannel, sourceChannels);
+              
+              if (matchResult) {
+                const { match, type } = matchResult;
+                
+                // Проверяем работоспособность нового потока
+                const isWorking = await checkStream(match.url);
+                
+                if (isWorking) {
+                  // Обновляем URL если он отличается
+                  if (currentChannel.url !== match.url) {
+                    currentChannel.url = match.url;
+                    updatedCount++;
+                    console.log(`✅ Обновлен: ${currentChannel.name} (${type})`);
+                  }
+                  workingChannels.push(currentChannel.name);
+                } else {
+                  console.log(`⚠️ Новый поток не работает для: ${currentChannel.name}`);
+                  brokenChannels.push(currentChannel.name);
+                }
+              }
+              
+              updatedChannels.push(currentChannel);
+            }
+            
+            return {
+              channels: updatedChannels,
+              updated: updatedCount,
+              quality: sourceQuality,
+              working: workingChannels,
+              broken: brokenChannels
+            };
+          }
+
+          // Функция создания M3U контента
+          function createM3U(channels) {
+            let content = '#EXTM3U\n';
+            for (const channel of channels) {
+              content += `${channel.extinf}\n${channel.url}\n\n`;
+            }
+            return content;
+          }
+
+          // Функция извлечения доменов из каналов
+          function extractDomains(channels) {
+            const domains = new Set();
+            for (const channel of channels) {
+              try {
+                const url = new URL(channel.url);
+                const hostname = url.hostname;
+                if (hostname && !hostname.includes('localhost') && !hostname.includes('127.0.0.1')) {
+                  domains.add(hostname);
+                }
+              } catch (e) {
+                // Игнорируем невалидные URL
+              }
+            }
+            return Array.from(domains);
+          }
+
+          // Главная функция
+          async function main() {
+            try {
+              // Загружаем текущий список каналов
+              console.log('📥 Загружаем текущий список каналов...');
+              const currentContent = fs.readFileSync('files/channels.m3u8', 'utf8');
+              const currentChannels = parseM3U(currentContent);
+              console.log(`📊 Загружено ${currentChannels.length} текущих каналов`);
+
+              let bestResult = null;
+              let usedSource = 'none';
+
+              // Если не принудительно используем резерв, пробуем основной источник
+              if (!FORCE_BACKUP && PRIMARY_URL) {
+                try {
+                  console.log('\n🎯 Тестируем основной источник...');
+                  const primaryContent = await fetchContent(PRIMARY_URL);
+                  const primaryChannels = parseM3U(primaryContent);
+                  
+                  const primaryResult = await updateChannels(currentChannels, primaryChannels, 'Основной');
+                  
+                  if (primaryResult.quality >= 0.6) {
+                    bestResult = primaryResult;
+                    usedSource = 'primary';
+                    console.log('✅ Основной источник качественный, используем его');
+                  } else {
+                    console.log('⚠️ Основной источник низкого качества, попробуем резервный');
+                  }
+                } catch (error) {
+                  console.log(`❌ Ошибка с основным источником: ${error.message}`);
+                }
+              }
+
+              // Если основной источник не подошел, используем резервный
+              if (!bestResult && BACKUP_URL) {
+                try {
+                  console.log('\n🔄 Тестируем резервный источник...');
+                  const backupContent = await fetchContent(BACKUP_URL);
+                  const backupChannels = parseM3U(backupContent);
+                  
+                  const backupResult = await updateChannels(currentChannels, backupChannels, 'Резервный');
+                  
+                  if (backupResult.quality >= 0.3) {
+                    bestResult = backupResult;
+                    usedSource = 'backup';
+                    console.log('✅ Резервный источник приемлемого качества, используем его');
+                  } else {
+                    console.log('❌ Резервный источник также низкого качества');
+                  }
+                } catch (error) {
+                  console.log(`❌ Ошибка с резервным источником: ${error.message}`);
+                }
+              }
+
+              // Сохраняем результат
+              if (bestResult && bestResult.updated > 0) {
+                const newContent = createM3U(bestResult.channels);
+                fs.writeFileSync('files/channels.m3u8', newContent);
+                
+                console.log(`\n🎉 Обновление завершено:`);
+                console.log(`📊 Источник: ${usedSource === 'primary' ? 'Основной' : 'Резервный'}`);
+                console.log(`🔄 Обновлено каналов: ${bestResult.updated}`);
+                console.log(`✅ Рабочих каналов: ${bestResult.working.length}`);
+                console.log(`❌ Проблемных каналов: ${bestResult.broken.length}`);
+                console.log(`📈 Качество источника: ${Math.round(bestResult.quality * 100)}%`);
+                
+                // Извлекаем домены для security config
+                const domains = extractDomains(bestResult.channels);
+                fs.writeFileSync('extracted_domains.txt', domains.join('\n'));
+                
+                console.log(`🔒 Извлечено доменов: ${domains.length}`);
+                console.log(`UPDATED_COUNT=${bestResult.updated}`);
+                
+                process.exit(0);
+              } else {
+                console.log('\n❌ Не удалось найти подходящий источник или нет обновлений');
+                console.log('UPDATED_COUNT=0');
+                process.exit(1);
+              }
+              
+            } catch (error) {
+              console.error(`❌ Критическая ошибка: ${error.message}`);
+              console.log('UPDATED_COUNT=0');
+              process.exit(1);
+            }
+          }
+
+          main();
+          EOF
+
+          # Устанавливаем переменные окружения для скрипта
+          export PRIMARY_URL="${{ github.event.inputs.primary_url }}"
+          export BACKUP_URL="${{ github.event.inputs.backup_url }}"
+          export FORCE_BACKUP="${{ github.event.inputs.force_backup }}"
+          
+          # Запускаем умный скрипт
+          if node smart_update.js > update_output.txt 2>&1; then
+            UPDATED_COUNT=$(grep "UPDATED_COUNT=" update_output.txt | cut -d'=' -f2)
+            echo "updated_count=${UPDATED_COUNT}" >> $GITHUB_OUTPUT
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            cat update_output.txt
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "updated_count=0" >> $GITHUB_OUTPUT
+            cat update_output.txt
+          fi
+
+      - name: Auto-update security domains
+        if: steps.smart-update.outputs.has_changes == 'true'
+        run: |
+          echo "🔒 Автоматическое обновление доменов безопасности..."
+          
+          if [ -f "extracted_domains.txt" ]; then
+            # Читаем извлеченные домены
+            NEW_DOMAINS=$(cat extracted_domains.txt)
+            echo "📡 Найденные домены: $NEW_DOMAINS"
+            
+            # Читаем текущий security config
+            CURRENT_XML=$(cat files/security_config.xml)
+            
+            # Извлекаем существующие домены
+            EXISTING_DOMAINS=$(echo "$CURRENT_XML" | grep -o '<domain[^>]*>[^<]*</domain>' | sed 's/<domain[^>]*>//g' | sed 's/<\/domain>//g' | sort | uniq)
+            
+            # Объединяем домены
+            ALL_DOMAINS=$(echo -e "$EXISTING_DOMAINS\n$NEW_DOMAINS" | sort | uniq | grep -v "^$")
+            
+            # Генерируем новый security config
+            cat > files/security_config.xml << 'SECURITY_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <network-security-config>
+              <domain-config cleartextTrafficPermitted="true">
+          SECURITY_EOF
+            
+            # Добавляем домены
+            echo "$ALL_DOMAINS" | while read domain; do
+              if [ ! -z "$domain" ]; then
+                echo "        <domain>$domain</domain>" >> files/security_config.xml
+              fi
+            done
+            
+            cat >> files/security_config.xml << 'SECURITY_EOF'
+              </domain-config>
+          </network-security-config>
+          SECURITY_EOF
+            
+            echo "✅ Security config обновлен с $(echo "$ALL_DOMAINS" | wc -l) доменами"
+          else
+            echo "⚠️ Файл extracted_domains.txt не найден"
+          fi
+
+      - name: Commit changes
+        if: steps.smart-update.outputs.has_changes == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "Smart Channel Updater"
+          
+          # Добавляем изменения
+          git add files/channels.m3u8 files/security_config.xml
+          
+          # Проверяем есть ли изменения
+          if git diff --staged --quiet; then
+            echo "Нет изменений для коммита"
+          else
+            UPDATED_COUNT="${{ steps.smart-update.outputs.updated_count }}"
+            git commit -m "🤖 Smart update: $UPDATED_COUNT channels updated with stream validation
+
+            - Автоматическая проверка работоспособности потоков
+            - Умное переключение между источниками
+            - Автообновление доменов безопасности
+            - Quality score: проверено $UPDATED_COUNT каналов"
+            git push
+            echo "✅ Изменения сохранены в репозиторий"
+          fi
+
+      - name: Cleanup
+        run: |
+          rm -f smart_update.js update_output.txt extracted_domains.txt
