@@ -18,6 +18,7 @@
             <certificates src="system"/>
         </trust-anchors>
             <domain includeSubdomains="true">stream-msk-20.ott.tricolor.tv</domain>
+            <domain includeSubdomains="true">streaming.televizor-24-tochka.ru</domain>
     </domain-config>
 
     <!-- IPTV потоки - разрешить HTTP и HTTPS -->
@@ -42,6 +43,7 @@
             <certificates src="system"/>
         </trust-anchors>
             <domain includeSubdomains="true">stream-msk-20.ott.tricolor.tv</domain>
+            <domain includeSubdomains="true">streaming.televizor-24-tochka.ru</domain>
     </domain-config>
     
     <!-- CDN потоки -->
@@ -70,5 +72,6 @@
             <certificates src="system"/>
         </trust-anchors>
             <domain includeSubdomains="true">stream-msk-20.ott.tricolor.tv</domain>
+            <domain includeSubdomains="true">streaming.televizor-24-tochka.ru</domain>
     </domain-config>
 </network-security-config> 
