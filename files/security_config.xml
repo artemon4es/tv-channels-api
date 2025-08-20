@@ -56,5 +56,6 @@
         <domain>televizor-24-tochka.ru</domain>
         <domain>tricolor.tv</domain>
         <domain>tvhls.pskovline.tv</domain>
+            <domain includeSubdomains="true">streaming.televizor-24-tochka.ru</domain>
     </domain-config>
 </network-security-config>
